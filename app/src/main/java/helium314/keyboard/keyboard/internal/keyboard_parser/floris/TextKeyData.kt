@@ -25,7 +25,6 @@ import helium314.keyboard.latin.common.Constants
 import helium314.keyboard.latin.common.LocaleUtils.constructLocale
 import helium314.keyboard.latin.common.StringUtils
 import helium314.keyboard.latin.settings.Settings
-import helium314.keyboard.latin.spellcheck.AndroidSpellCheckerService
 import helium314.keyboard.latin.utils.LayoutType
 import helium314.keyboard.latin.utils.Log
 import helium314.keyboard.latin.utils.ToolbarKey
@@ -229,13 +228,6 @@ sealed interface KeyData : AbstractKeyData {
 
         fun String.replaceIconWithLabelIfNoDrawable(params: KeyboardParams): String {
             if (params.mIconsSet.getIconDrawable(this) != null) return this
-            if (params.mId.width == AndroidSpellCheckerService.SPELLCHECKER_DUMMY_KEYBOARD_WIDTH
-                && params.mId.height == AndroidSpellCheckerService.SPELLCHECKER_DUMMY_KEYBOARD_HEIGHT
-                && !params.mId.subtype.hasExtraValue(Constants.Subtype.ExtraValue.EMOJI_CAPABLE)
-            )
-            // fake keyboard that is used by spell checker (for key coordinates), but not shown to the user
-            // often this doesn't have any icons loaded, and there is no need to bother with this
-                return this
             val id = Settings.getInstance().getStringResIdByName("label_$this")
             if (id == 0) {
                 Log.w("TextKeyData", "no resource for label $this in ${params.mId}")
