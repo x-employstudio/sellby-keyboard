@@ -18,10 +18,7 @@ import helium314.keyboard.keyboard.KeyboardSwitcher
 import helium314.keyboard.latin.R
 import helium314.keyboard.latin.common.Constants.Separators
 import helium314.keyboard.latin.settings.Settings
-import helium314.keyboard.settings.SettingsDestination
 import helium314.keyboard.settings.dialogs.ThreeButtonAlertDialog
-import helium314.keyboard.settings.screens.gesturedata.END_DATE_EPOCH_MILLIS
-import helium314.keyboard.settings.screens.gesturedata.TWO_WEEKS_IN_MILLIS
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
@@ -32,6 +29,9 @@ import kotlin.random.Random
 
 // functionality for gesture data gathering as part of the NLNet Project https://nlnet.nl/project/GestureTyping/
 // will be removed once the project is finished
+
+const val END_DATE_EPOCH_MILLIS = 1798758000000L // Jan 1st 2027
+const val TWO_WEEKS_IN_MILLIS = 14L * 24 * 3600 * 1000
 
 object GestureDataGatheringSettings {
     private const val PREF_WORD_EXCLUSIONS = "gesture_data_word_exclusions"
@@ -196,7 +196,7 @@ object GestureDataGatheringSettings {
                 title = { Text(stringResource(R.string.gesture_data_screen)) },
                 content = { Text(stringResource(R.string.gesture_data_promotion_message)) },
                 confirmButtonText = stringResource(R.string.gesture_data_take_me_there),
-                onConfirmed = { SettingsDestination.navigateTo(SettingsDestination.DataGathering) },
+                onConfirmed = { shouldShowPromotion = false },
                 neutralButtonText = stringResource(R.string.no_dictionary_dont_show_again_button),
                 onNeutral = {
                     ctx.prefs().edit { putLong(PREF_SHOW_PROMOTION_DIALOG_NEXT, Long.MAX_VALUE) }
@@ -214,7 +214,7 @@ object GestureDataGatheringSettings {
                 title = { Text(stringResource(R.string.gesture_data_screen)) },
                 content = { Text(stringResource(R.string.gesture_data_reminder_message)) },
                 confirmButtonText = stringResource(R.string.gesture_data_take_me_there),
-                onConfirmed = { SettingsDestination.navigateTo(SettingsDestination.DataGathering) },
+                onConfirmed = { shouldShowReminder = false },
                 neutralButtonText = stringResource(R.string.no_dictionary_dont_show_again_button),
                 onNeutral = {
                     ctx.prefs().edit { putLong(PREF_SHOW_REMINDER_DIALOG_NEXT, Long.MAX_VALUE) }
