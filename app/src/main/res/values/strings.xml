@@ -717,6 +717,9 @@ New dictionary:
     <string name="day_night_mode">Auto day/night mode</string>
     <!-- Description for "day_night_mode" option. -->
     <string name="day_night_mode_summary">Appearance will follow system settings</string>
+    <!-- Sellby: manual light/dark toggle (temporary UI, replaced by the in-keyboard Settings panel) -->
+    <string name="sellby_dark_mode">Dark mode</string>
+    <string name="sellby_dark_mode_summary">Switch the keyboard between light and dark colors</string>
     <!-- Option for setting navbar to follow keyboard color -->
     <string name="theme_navbar">Color navigation bar</string>
     <!-- Theme name for light theme -->

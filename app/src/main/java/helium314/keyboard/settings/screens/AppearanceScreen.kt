@@ -137,7 +137,7 @@ fun createAppearanceSettings(context: Context) = listOf(
     },
     // Sellby: temporary manual light/dark toggle (moon/sun icon lives in the in-keyboard
     // Settings panel from Fase 4 onward; this row is just for testing until then).
-    Setting(context, Settings.PREF_THEME_DARK_MODE, R.string.day_night_mode) {
+    Setting(context, Settings.PREF_THEME_DARK_MODE, R.string.sellby_dark_mode, R.string.sellby_dark_mode_summary) {
         SwitchPreference(it, Defaults.PREF_THEME_DARK_MODE) { KeyboardSwitcher.getInstance().setThemeNeedsReload() }
     },
     Setting(context, Settings.PREF_NAVBAR_COLOR, R.string.theme_navbar, R.string.day_night_mode_summary) {
