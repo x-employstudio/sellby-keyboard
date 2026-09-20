@@ -20,7 +20,6 @@ import helium314.keyboard.settings.screens.AboutScreen
 import helium314.keyboard.settings.screens.AdvancedSettingsScreen
 import helium314.keyboard.settings.screens.AppearanceScreen
 import helium314.keyboard.settings.screens.ColorsScreen
-import helium314.keyboard.settings.screens.DebugScreen
 import helium314.keyboard.settings.screens.DictionaryScreen
 import helium314.keyboard.settings.screens.GestureTypingScreen
 import helium314.keyboard.settings.screens.LanguageScreen
@@ -105,9 +104,6 @@ fun SettingsNavHost(
         composable(SettingsDestination.Advanced) {
             AdvancedSettingsScreen(onClickBack = ::goBack)
         }
-        composable(SettingsDestination.Debug) {
-            DebugScreen(onClickBack = ::goBack)
-        }
         composable(SettingsDestination.Appearance) {
             AppearanceScreen(onClickBack = ::goBack)
         }
@@ -154,7 +150,6 @@ object SettingsDestination {
     const val DataGathering = "data_gathering" // remove when data gathering phase is done (end of 2026 latest)
     const val DataReview = "data_review" // remove when data gathering phase is done (end of 2026 latest)
     const val Advanced = "advanced"
-    const val Debug = "debug"
     const val Appearance = "appearance"
     const val Colors = "colors/"
     const val ColorsNight = "colors_night/"
