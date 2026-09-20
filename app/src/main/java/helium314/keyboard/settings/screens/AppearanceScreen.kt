@@ -3,7 +3,6 @@ package helium314.keyboard.settings.screens
 
 import android.content.Context
 import android.os.Build
-import androidx.compose.foundation.layout.Column
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -43,8 +42,6 @@ import helium314.keyboard.settings.preferences.TextInputPreference
 import helium314.keyboard.latin.utils.previewDark
 import androidx.core.content.edit
 import helium314.keyboard.latin.settings.Settings
-import helium314.keyboard.latin.utils.FoldableUtils
-import helium314.keyboard.settings.dialogs.ThreeButtonAlertDialog
 
 @Composable
 fun AppearanceScreen(
@@ -70,13 +67,6 @@ fun AppearanceScreen(
         SettingsWithoutKey.BACKGROUND_IMAGE,
         SettingsWithoutKey.BACKGROUND_IMAGE_LANDSCAPE,
         R.string.settings_category_miscellaneous,
-        Settings.PREF_ENABLE_SPLIT_KEYBOARD,
-        if (prefs.getBoolean(Settings.PREF_ENABLE_SPLIT_KEYBOARD_LANDSCAPE, Defaults.PREF_ENABLE_SPLIT_KEYBOARD)
-            || prefs.getBoolean(Settings.PREF_ENABLE_SPLIT_KEYBOARD, Defaults.PREF_ENABLE_SPLIT_KEYBOARD)
-            || prefs.getBoolean(Settings.PREF_ENABLE_SPLIT_KEYBOARD_FOLDED, Defaults.PREF_ENABLE_SPLIT_KEYBOARD)
-            || prefs.getBoolean(Settings.PREF_ENABLE_SPLIT_KEYBOARD_FOLDED_LANDSCAPE, Defaults.PREF_ENABLE_SPLIT_KEYBOARD)
-            )
-            Settings.PREF_SPLIT_SPACER_SCALE_PREFIX else null,
         if (prefs.getBoolean(Settings.PREF_THEME_KEY_BORDERS, Defaults.PREF_THEME_KEY_BORDERS))
             Settings.PREF_KEY_GAP_SCALE_PREFIX else null,
         Settings.PREF_KEYBOARD_HEIGHT_SCALE_PREFIX,
@@ -206,48 +196,6 @@ fun createAppearanceSettings(context: Context) = listOf(
         R.string.customize_background_image_landscape, R.string.summary_customize_background_image_landscape)
     {
         BackgroundImagePref(it, true)
-    },
-    Setting(context, Settings.PREF_ENABLE_SPLIT_KEYBOARD, R.string.enable_split_keyboard) {
-        var show by remember { mutableStateOf(false) }
-        val prefAndName = listOfNotNull(
-            Settings.PREF_ENABLE_SPLIT_KEYBOARD to stringResource(R.string.button_default),
-            Settings.PREF_ENABLE_SPLIT_KEYBOARD_LANDSCAPE to stringResource(R.string.landscape),
-            if (!FoldableUtils.isFoldable) null else
-                Settings.PREF_ENABLE_SPLIT_KEYBOARD_FOLDED to stringResource(R.string.folded),
-            if (!FoldableUtils.isFoldable) null else
-                Settings.PREF_ENABLE_SPLIT_KEYBOARD_FOLDED_LANDSCAPE to stringResource(R.string.folded) + " / " + stringResource(R.string.landscape)
-        )
-        Preference(
-            name = stringResource(R.string.enable_split_keyboard),
-            onClick = { show = true },
-            description = prefAndName.filter { LocalContext.current.prefs().getBoolean(it.first, Defaults.PREF_ENABLE_SPLIT_KEYBOARD) }
-                .joinToString(", ") { it.second }.takeIf { it.isNotEmpty() }
-        )
-        if (show) {
-            ThreeButtonAlertDialog(
-                onDismissRequest = { show = false },
-                onConfirmed = {},
-                confirmButtonText = null,
-                cancelButtonText = stringResource(R.string.dialog_close),
-                content = {
-                    Column {
-                        prefAndName.forEach {
-                            SwitchPreference(name = it.second, key = it.first, default = Defaults.PREF_ENABLE_SPLIT_KEYBOARD)
-                        }
-                    }
-                }
-            )
-        }
-    },
-    Setting(context, Settings.PREF_SPLIT_SPACER_SCALE_PREFIX, R.string.split_spacer_scale) { setting ->
-        KeyboardScalePreference(
-            name = setting.title,
-            baseKey = setting.key,
-            dimensions = listOf(stringResource(R.string.landscape), stringResource(R.string.folded)),
-            defaults = Defaults.PREF_SPLIT_SPACER_SCALE,
-            range = 0.5f..2f,
-            description = { "${(100 * it).toInt()}%" }
-        ) { KeyboardSwitcher.getInstance().setThemeNeedsReload() }
     },
     Setting(context, Settings.PREF_KEY_GAP_SCALE_PREFIX, R.string.prefs_key_gap_scale) { setting ->
         KeyboardScalePreference(
