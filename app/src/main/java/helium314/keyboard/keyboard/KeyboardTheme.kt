@@ -22,7 +22,6 @@ import helium314.keyboard.latin.common.DefaultColors
 import helium314.keyboard.latin.common.DynamicColors
 import helium314.keyboard.latin.settings.Defaults
 import helium314.keyboard.latin.settings.Settings
-import helium314.keyboard.latin.utils.ResourceUtils
 import helium314.keyboard.latin.utils.brightenOrDarken
 import helium314.keyboard.latin.utils.isBrightColor
 import helium314.keyboard.latin.utils.isGoodContrast
@@ -133,15 +132,14 @@ private constructor(val themeId: Int, @JvmField val mStyleId: Int) {
         @JvmStatic
         fun getColorsForCurrentTheme(context: Context): Colors {
             val prefs = context.prefs()
+            // Sellby: manual light/dark toggle only (Settings.PREF_THEME_DARK_MODE), instead of
+            // system-brightness/PREF_THEME_DAY_NIGHT and the full color-theme picker.
             val isNight = SettingsActivity.forceNight
-                ?: (ResourceUtils.isNight(context.resources) && prefs.getBoolean(Settings.PREF_THEME_DAY_NIGHT, Defaults.PREF_THEME_DAY_NIGHT))
-            val themeName = SettingsActivity.forceTheme ?: if (isNight)
-                prefs.getString(Settings.PREF_THEME_COLORS_NIGHT, Defaults.PREF_THEME_COLORS_NIGHT)
-            else
-                prefs.getString(Settings.PREF_THEME_COLORS, Defaults.PREF_THEME_COLORS)
+                ?: prefs.getBoolean(Settings.PREF_THEME_DARK_MODE, Defaults.PREF_THEME_DARK_MODE)
+            val themeName = SettingsActivity.forceTheme ?: if (isNight) THEME_DARK else THEME_LIGHT
             val themeStyle = prefs.getString(Settings.PREF_THEME_STYLE, Defaults.PREF_THEME_STYLE)
 
-            return getThemeColors(themeName!!, themeStyle!!, context, prefs, isNight)
+            return getThemeColors(themeName, themeStyle!!, context, prefs, isNight)
         }
 
         private fun getThemeColors(themeName: String, themeStyle: String, context: Context, prefs: SharedPreferences, isNight: Boolean): Colors {
@@ -530,3 +528,17 @@ private constructor(val themeId: Int, @JvmField val mStyleId: Int) {
 data class ColorSetting(val name: String, val auto: Boolean?, val color: Int?) {
     var displayName = name
 }
+
+// used by AppUpgrade for migrating legacy per-color preferences; the color-theme picker UI itself was removed
+val colorPrefsAndResIds = listOf(
+    KeyboardTheme.COLOR_BACKGROUND to R.string.select_color_background,
+    KeyboardTheme.COLOR_KEYS to R.string.select_color_key_background,
+    KeyboardTheme.COLOR_FUNCTIONAL_KEYS to R.string.select_color_functional_key_background,
+    KeyboardTheme.COLOR_SPACEBAR to R.string.select_color_spacebar_background,
+    KeyboardTheme.COLOR_TEXT to R.string.select_color_key,
+    KeyboardTheme.COLOR_HINT_TEXT to R.string.select_color_key_hint,
+    KeyboardTheme.COLOR_SUGGESTION_TEXT to R.string.select_color_suggestion,
+    KeyboardTheme.COLOR_SPACEBAR_TEXT to R.string.select_color_spacebar_text,
+    KeyboardTheme.COLOR_ACCENT to R.string.select_color_accent,
+    KeyboardTheme.COLOR_GESTURE to R.string.select_color_gesture,
+)

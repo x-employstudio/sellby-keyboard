@@ -8,6 +8,7 @@ import helium314.keyboard.compat.isDeviceLocked
 import helium314.keyboard.compat.isUserLocked
 import helium314.keyboard.keyboard.ColorSetting
 import helium314.keyboard.keyboard.KeyboardTheme
+import helium314.keyboard.keyboard.colorPrefsAndResIds
 import helium314.keyboard.keyboard.emoji.RecentEmojis
 import helium314.keyboard.keyboard.internal.keyboard_parser.floris.KeyCode.checkAndConvertCode
 import helium314.keyboard.latin.common.ColorType
@@ -43,7 +44,6 @@ import helium314.keyboard.latin.utils.prefs
 import helium314.keyboard.latin.utils.protectedPrefs
 import helium314.keyboard.latin.utils.upgradeToolbarPrefs
 import helium314.keyboard.latin.utils.writeCustomKeyCodes
-import helium314.keyboard.settings.screens.colorPrefsAndResIds
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import java.io.File

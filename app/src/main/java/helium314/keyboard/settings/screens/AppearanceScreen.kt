@@ -32,10 +32,8 @@ import helium314.keyboard.settings.SettingsActivity
 import helium314.keyboard.settings.preferences.SliderPreference
 import helium314.keyboard.settings.preferences.SwitchPreference
 import helium314.keyboard.latin.utils.Theme
-import helium314.keyboard.settings.dialogs.ColorThemePickerDialog
 import helium314.keyboard.settings.dialogs.CustomizeIconsDialog
 import helium314.keyboard.settings.initPreview
-import helium314.keyboard.settings.preferences.BackgroundImagePref
 import helium314.keyboard.settings.preferences.CustomFontPreference
 import helium314.keyboard.settings.preferences.KeyboardScalePreference
 import helium314.keyboard.settings.preferences.TextInputPreference
@@ -52,20 +50,14 @@ fun AppearanceScreen(
     val b = (LocalContext.current.getActivity() as? SettingsActivity)?.prefChanged?.collectAsState()
     if ((b?.value ?: 0) < 0)
         Log.v("irrelevant", "stupid way to trigger recomposition on preference change")
-    val dayNightMode = Build.VERSION.SDK_INT >= Build.VERSION_CODES.P && prefs.getBoolean(Settings.PREF_THEME_DAY_NIGHT, Defaults.PREF_THEME_DAY_NIGHT)
     val items = listOf(
         R.string.settings_screen_theme,
         Settings.PREF_THEME_STYLE,
         Settings.PREF_ICON_STYLE,
         Settings.PREF_CUSTOM_ICON_NAMES,
         Settings.PREF_THEME_KEY_BORDERS,
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P)
-            Settings.PREF_THEME_DAY_NIGHT else null,
-        Settings.PREF_THEME_COLORS,
-        if (dayNightMode) Settings.PREF_THEME_COLORS_NIGHT else null,
+        Settings.PREF_THEME_DARK_MODE,
         Settings.PREF_NAVBAR_COLOR,
-        SettingsWithoutKey.BACKGROUND_IMAGE,
-        SettingsWithoutKey.BACKGROUND_IMAGE_LANDSCAPE,
         R.string.settings_category_miscellaneous,
         if (prefs.getBoolean(Settings.PREF_THEME_KEY_BORDERS, Defaults.PREF_THEME_KEY_BORDERS))
             Settings.PREF_KEY_GAP_SCALE_PREFIX else null,
@@ -140,62 +132,16 @@ fun createAppearanceSettings(context: Context) = listOf(
             CustomizeIconsDialog(setting.key) { showDialog = false }
         }
     },
-    Setting(context, Settings.PREF_THEME_COLORS, R.string.theme_colors) { setting ->
-        val ctx = LocalContext.current
-        val prefs = ctx.prefs()
-        val b = (ctx.getActivity() as? SettingsActivity)?.prefChanged?.collectAsState()
-        if ((b?.value ?: 0) < 0)
-            Log.v("irrelevant", "stupid way to trigger recomposition on preference change")
-        var showDialog by rememberSaveable { mutableStateOf(false) }
-        Preference(
-            name = setting.title,
-            description = prefs.getString(setting.key, Defaults.PREF_THEME_COLORS)!!.getStringResourceOrName("theme_name_", ctx),
-            onClick = { showDialog = true }
-        )
-        if (showDialog)
-            ColorThemePickerDialog(
-                onDismissRequest = { showDialog = false },
-                setting = setting,
-                isNight = false,
-                default = Defaults.PREF_THEME_COLORS
-            )
-    },
-    Setting(context, Settings.PREF_THEME_COLORS_NIGHT, R.string.theme_colors_night) { setting ->
-        val ctx = LocalContext.current
-        val b = (ctx.getActivity() as? SettingsActivity)?.prefChanged?.collectAsState()
-        val prefs = ctx.prefs()
-        if ((b?.value ?: 0) < 0)
-            Log.v("irrelevant", "stupid way to trigger recomposition on preference change")
-        var showDialog by rememberSaveable { mutableStateOf(false) }
-        Preference(
-            name = setting.title,
-            description = prefs.getString(setting.key, Defaults.PREF_THEME_COLORS_NIGHT)!!.getStringResourceOrName("theme_name_", ctx),
-            onClick = { showDialog = true }
-        )
-        if (showDialog)
-            ColorThemePickerDialog(
-                onDismissRequest = { showDialog = false },
-                setting = setting,
-                isNight = true,
-                default = Defaults.PREF_THEME_COLORS_NIGHT
-            )
-    },
     Setting(context, Settings.PREF_THEME_KEY_BORDERS, R.string.key_borders) {
         SwitchPreference(it, Defaults.PREF_THEME_KEY_BORDERS) { KeyboardSwitcher.getInstance().setThemeNeedsReload() }
     },
-    Setting(context, Settings.PREF_THEME_DAY_NIGHT, R.string.day_night_mode, R.string.day_night_mode_summary) {
-        SwitchPreference(it, Defaults.PREF_THEME_DAY_NIGHT) { KeyboardSwitcher.getInstance().setThemeNeedsReload() }
+    // Sellby: temporary manual light/dark toggle (moon/sun icon lives in the in-keyboard
+    // Settings panel from Fase 4 onward; this row is just for testing until then).
+    Setting(context, Settings.PREF_THEME_DARK_MODE, R.string.day_night_mode) {
+        SwitchPreference(it, Defaults.PREF_THEME_DARK_MODE) { KeyboardSwitcher.getInstance().setThemeNeedsReload() }
     },
     Setting(context, Settings.PREF_NAVBAR_COLOR, R.string.theme_navbar, R.string.day_night_mode_summary) {
         SwitchPreference(it, Defaults.PREF_NAVBAR_COLOR)
-    },
-    Setting(context, SettingsWithoutKey.BACKGROUND_IMAGE, R.string.customize_background_image) {
-        BackgroundImagePref(it, false)
-    },
-    Setting(context, SettingsWithoutKey.BACKGROUND_IMAGE_LANDSCAPE,
-        R.string.customize_background_image_landscape, R.string.summary_customize_background_image_landscape)
-    {
-        BackgroundImagePref(it, true)
     },
     Setting(context, Settings.PREF_KEY_GAP_SCALE_PREFIX, R.string.prefs_key_gap_scale) { setting ->
         KeyboardScalePreference(

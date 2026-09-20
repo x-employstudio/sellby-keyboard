@@ -18,7 +18,6 @@ import helium314.keyboard.latin.settings.getTransitionAnimationScale
 import helium314.keyboard.settings.screens.AboutScreen
 import helium314.keyboard.settings.screens.AdvancedSettingsScreen
 import helium314.keyboard.settings.screens.AppearanceScreen
-import helium314.keyboard.settings.screens.ColorsScreen
 import helium314.keyboard.settings.screens.MainSettingsScreen
 import helium314.keyboard.settings.screens.PersonalDictionariesScreen
 import helium314.keyboard.settings.screens.PersonalDictionaryScreen
@@ -100,12 +99,6 @@ fun SettingsNavHost(
         composable(SettingsDestination.Layouts) {
             SecondaryLayoutScreen(onClickBack = ::goBack)
         }
-        composable(SettingsDestination.Colors + "{theme}") {
-            ColorsScreen(isNight = false, theme = it.arguments?.getString("theme"), onClickBack = ::goBack)
-        }
-        composable(SettingsDestination.ColorsNight + "{theme}") {
-            ColorsScreen(isNight = true, theme = it.arguments?.getString("theme"), onClickBack = ::goBack)
-        }
     }
     if (target.value != SettingsDestination.Settings/* && target.value != navController.currentBackStackEntry?.destination?.route*/)
         navController.navigate(route = target.value)
@@ -119,8 +112,6 @@ object SettingsDestination {
     const val Toolbar = "toolbar"
     const val Advanced = "advanced"
     const val Appearance = "appearance"
-    const val Colors = "colors/"
-    const val ColorsNight = "colors_night/"
     const val PersonalDictionaries = "personal_dictionaries"
     const val PersonalDictionary = "personal_dictionary/"
     const val Layouts = "layouts"

@@ -60,6 +60,9 @@ public final class Settings implements SharedPreferences.OnSharedPreferenceChang
     public static final String PREF_THEME_COLORS_NIGHT = "theme_colors_night";
     public static final String PREF_THEME_KEY_BORDERS = "theme_key_borders";
     public static final String PREF_THEME_DAY_NIGHT = "theme_auto_day_night";
+    // Sellby: manual light/dark toggle, replaces HeliBoard's day/night+color-theme system.
+    // Temporary UI lives in AppearanceScreen for now; permanent home is the in-keyboard Settings panel (Fase 4).
+    public static final String PREF_THEME_DARK_MODE = "sellby_theme_dark_mode";
     public static final String PREF_USER_COLORS_PREFIX = "user_colors_";
     public static final String PREF_USER_ALL_COLORS_PREFIX = "user_all_colors_";
     public static final String PREF_USER_MORE_COLORS_PREFIX = "user_more_colors_";
