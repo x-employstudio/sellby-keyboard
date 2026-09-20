@@ -20,7 +20,6 @@ import helium314.keyboard.settings.screens.AboutScreen
 import helium314.keyboard.settings.screens.AdvancedSettingsScreen
 import helium314.keyboard.settings.screens.AppearanceScreen
 import helium314.keyboard.settings.screens.ColorsScreen
-import helium314.keyboard.settings.screens.DictionaryScreen
 import helium314.keyboard.settings.screens.GestureTypingScreen
 import helium314.keyboard.settings.screens.LanguageScreen
 import helium314.keyboard.settings.screens.MainSettingsScreen
@@ -76,7 +75,6 @@ fun SettingsNavHost(
                 onClickAppearance = { navController.navigate(SettingsDestination.Appearance) },
                 onClickLanguage = { navController.navigate(SettingsDestination.Languages) },
                 onClickLayouts = { navController.navigate(SettingsDestination.Layouts) },
-                onClickDictionaries = { navController.navigate(SettingsDestination.Dictionaries) },
                 onClickBack = ::goBack,
             )
         }
@@ -120,9 +118,6 @@ fun SettingsNavHost(
         composable(SettingsDestination.Languages) {
             LanguageScreen(onClickBack = ::goBack)
         }
-        composable(SettingsDestination.Dictionaries) {
-            DictionaryScreen(onClickBack = ::goBack)
-        }
         composable(SettingsDestination.Layouts) {
             SecondaryLayoutScreen(onClickBack = ::goBack)
         }
@@ -158,7 +153,6 @@ object SettingsDestination {
     const val Languages = "languages"
     const val Subtype = "subtype/"
     const val Layouts = "layouts"
-    const val Dictionaries = "dictionaries"
     val navTarget = MutableStateFlow(Settings)
 
     private val navScope = CoroutineScope(Dispatchers.Default)

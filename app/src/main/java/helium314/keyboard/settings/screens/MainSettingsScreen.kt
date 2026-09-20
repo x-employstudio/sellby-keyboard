@@ -41,7 +41,6 @@ fun MainSettingsScreen(
     onClickAppearance: () -> Unit,
     onClickLanguage: () -> Unit,
     onClickLayouts: () -> Unit,
-    onClickDictionaries: () -> Unit,
     onClickBack: () -> Unit,
 ) {
     SearchSettingsScreen(
@@ -99,11 +98,6 @@ fun MainSettingsScreen(
                     icon = R.drawable.ic_settings_layout
                 ) { NextScreenIcon() }
                 Preference(
-                    name = stringResource(R.string.dictionary_settings_category),
-                    onClick = onClickDictionaries,
-                    icon = R.drawable.ic_dictionary
-                ) { NextScreenIcon() }
-                Preference(
                     name = stringResource(R.string.settings_screen_advanced),
                     onClick = onClickAdvanced,
                     icon = R.drawable.ic_settings_advanced
@@ -124,7 +118,7 @@ private fun PreviewScreen() {
     initPreview(LocalContext.current)
     Theme(previewDark) {
         Surface {
-            MainSettingsScreen({}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {})
+            MainSettingsScreen({}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {})
         }
     }
 }

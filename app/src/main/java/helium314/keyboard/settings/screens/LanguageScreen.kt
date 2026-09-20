@@ -49,6 +49,7 @@ import helium314.keyboard.settings.SettingsDestination
 import helium314.keyboard.latin.utils.Theme
 import helium314.keyboard.settings.initPreview
 import helium314.keyboard.latin.utils.previewDark
+import java.io.File
 import java.util.Locale
 
 @Composable
@@ -128,6 +129,27 @@ private fun dictsAvailable(locale: Locale, context: Context): Boolean {
     if (locale.language == SubtypeLocaleUtils.NO_LANGUAGE) return true // incorrect, but we don't want to show the dialog for "no language"
     val (dicts, hasInternal) = getUserAndInternalDictionaries(context, locale)
     return hasInternal || dicts.isNotEmpty()
+}
+
+private fun getUserAndInternalDictionaries(context: Context, locale: Locale): Pair<List<File>, Boolean> {
+    val userDicts = mutableListOf<File>()
+    var hasInternalDict = false
+    val userLocaleDir = DictionaryInfoUtils.getCacheDirectoryForLocale(locale, context)?.let { File(it) }
+    if (userLocaleDir?.exists() == true && userLocaleDir.isDirectory) {
+        userLocaleDir.listFiles()?.forEach {
+            if (it.name.endsWith(DictionaryInfoUtils.USER_DICTIONARY_SUFFIX))
+                userDicts.add(it)
+            else if (it.name.startsWith(DictionaryInfoUtils.MAIN_DICT_PREFIX))
+                hasInternalDict = true
+        }
+    }
+    if (hasInternalDict)
+        return userDicts to true
+    val internalDicts = DictionaryInfoUtils.getAssetsDictionaryList(context) ?: return userDicts to false
+    val best = LocaleUtils.getBestMatch(locale, internalDicts.toList()) {
+        DictionaryInfoUtils.extractLocaleFromAssetsDictionaryFile(it)
+    }
+    return userDicts to (best != null)
 }
 
 // sorting by display name is still slow, even with the cache... but probably good enough
