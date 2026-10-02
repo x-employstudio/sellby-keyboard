@@ -28,6 +28,11 @@
         <!-- A negative value to disable key text shadow layer. -->
         <item name="keyTextShadowRadius">-1.0</item>
         <item name="keyHintLetterPadding">@dimen/config_key_hint_letter_padding</item>
+        <!-- Sellby: was unset (defaults to 0, hint sits flush at the very top of the key) - a small
+             positive value nudges the QWERTYUIOP number hint down toward the main letter instead of
+             hugging the top-right corner. themes-rounded-base.xml already sets 15%p for its own
+             theme; 10% chosen as a moderate starting point for this app's default (Material) theme. -->
+        <item name="keyHintLabelVerticalAdjustment">10%p</item>
         <item name="keyPopupHintLetterPadding">@dimen/config_key_popup_hint_letter_padding</item>
         <item name="keyShiftedLetterHintPadding">@dimen/config_key_shifted_letter_hint_padding</item>
         <item name="keyPreviewTextRatio">@fraction/config_key_preview_text_ratio</item>
@@ -93,6 +98,7 @@
          attributes. -->
     <style name="EmojiPalettesView" />
     <style name="ClipboardHistoryView" />
+    <style name="CalculatorView" />
     <style name="PopupKeysKeyboardView" />
     <style name="SuggestionStripView" />
     <style name="SuggestionWord">

@@ -28,27 +28,33 @@
 
     <fraction name="config_keyboard_top_padding_holo">2.335%p</fraction>
     <fraction name="config_keyboard_bottom_padding_holo">4.669%p</fraction>
-    <fraction name="config_key_vertical_gap_holo">3.527%p</fraction>
-    <fraction name="config_key_horizontal_gap_holo">1.089%p</fraction>
+    <fraction name="config_key_vertical_gap_holo">2.8%p</fraction>
+    <fraction name="config_key_horizontal_gap_holo">1%p</fraction>
     <!-- config_popup_keys_keyboard_key_height x -0.5 -->
     <dimen name="config_popup_keys_keyboard_vertical_correction_holo">-26.4dp</dimen>
     <dimen name="config_key_preview_offset_holo">40.0dp</dimen>
-    <dimen name="config_key_preview_offset_lxx">0dp</dimen>
-    <fraction name="config_key_preview_text_ratio">82%</fraction>
+    <dimen name="config_key_preview_offset_lxx">6.4dp</dimen>
+    <fraction name="config_key_preview_text_ratio">43%</fraction>
     <fraction name="config_key_letter_ratio_holo">55%</fraction>
-    <fraction name="config_key_letter_ratio_lxx">55%</fraction>
+    <fraction name="config_key_letter_ratio_lxx">43%</fraction>
     <fraction name="config_key_large_letter_ratio_holo">65%</fraction>
-    <fraction name="config_key_large_letter_ratio_lxx">90%</fraction>
+    <fraction name="config_key_large_letter_ratio_lxx">48%</fraction>
     <fraction name="config_key_label_ratio_holo">34%</fraction>
-    <fraction name="config_key_label_ratio_lxx">34%</fraction>
+    <fraction name="config_key_label_ratio_lxx">28%</fraction>
     <fraction name="config_key_hint_letter_ratio_holo">25%</fraction>
-    <fraction name="config_key_hint_letter_ratio_lxx">25%</fraction>
+    <fraction name="config_key_hint_letter_ratio_lxx">21%</fraction>
     <fraction name="config_key_hint_label_ratio_holo">44%</fraction>
     <fraction name="config_key_hint_label_ratio_lxx">30%</fraction>
     <fraction name="config_key_shifted_letter_hint_ratio_holo">35%</fraction>
     <fraction name="config_key_shifted_letter_hint_ratio_lxx">35%</fraction>
-    <fraction name="config_language_on_spacebar_text_ratio">33.735%</fraction>
-    <dimen name="config_key_hint_letter_padding">1dp</dimen>
+    <!-- Sellby: -20% (33.735% -> 26.988%) for the "Sellby" spacebar watermark, the only thing
+         using this ratio now that Settings.PREF_SPACE_BAR_TEXT always holds "Sellby". -->
+    <fraction name="config_language_on_spacebar_text_ratio">26.988%</fraction>
+    <!-- Sellby: 1dp -> 4dp, moves the small number hint (top-right corner of QWERTYUIOP letter
+         keys) further from the key's edge / closer to the main letter. See KeyboardView.java's
+         hint-letter draw branch: hintX = keyWidth - padding - hintWidth/2, so a larger padding
+         shifts the hint's center further left/inward. -->
+    <dimen name="config_key_hint_letter_padding">4dp</dimen>
     <dimen name="config_key_shifted_letter_hint_padding">2dp</dimen>
 
     <dimen name="config_suggestions_strip_height">40dp</dimen>
@@ -70,7 +76,7 @@
 
     <!-- Emoji keyboard -->
     <fraction name="config_emoji_keyboard_key_width">12.5%p</fraction>
-    <fraction name="config_emoji_keyboard_row_height">30%p</fraction>
+    <fraction name="config_emoji_keyboard_row_height">21%p</fraction>
     <fraction name="config_emoji_keyboard_key_letter_size">78%p</fraction>
     <fraction name="config_emoji_keyboard_key_label_size">78%p</fraction>
     <integer name="config_emoji_keyboard_max_recents_key_count">32</integer>

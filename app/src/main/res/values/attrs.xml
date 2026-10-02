@@ -17,6 +17,8 @@
         <attr name="emojiPalettesViewStyle" format="reference" />
         <!-- ClipboardHistoryView style -->
         <attr name="clipboardHistoryViewStyle" format="reference" />
+        <!-- CalculatorView style -->
+        <attr name="calculatorViewStyle" format="reference" />
         <!-- PopupKeysKeyboard style -->
         <attr name="popupKeysKeyboardStyle" format="reference" />
         <!-- PopupKeysKeyboardView style -->
@@ -44,6 +46,10 @@
              states: normal, pressed. -->
         <attr name="spacebarBackground" format="reference" />
         <attr name="spacebarNoBorderBackground" format="reference" />
+        <!-- Background image for badge-style keys (comma/period/symbol-alpha switch) with a
+             persistent pill background. Needs to be a
+             {@link android.graphics.drawable.StateListDrawable}, with states: normal, pressed. -->
+        <attr name="badgeKeyBackground" format="reference" />
         <attr name="spacebarIconWidthRatio" format="float" />
         <!-- Right padding of hint letter to the edge of the key.-->
         <attr name="keyHintLetterPadding" format="dimension" />

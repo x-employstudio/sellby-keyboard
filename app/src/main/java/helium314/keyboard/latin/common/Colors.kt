@@ -5,12 +5,14 @@ package helium314.keyboard.latin.common
 import android.content.Context
 import android.content.res.ColorStateList
 import android.content.res.Configuration
+import android.content.res.Resources
 import android.content.res.TypedArray
 import android.graphics.Color
 import android.graphics.ColorFilter
 import android.graphics.PorterDuff
 import android.graphics.drawable.Drawable
 import android.graphics.drawable.GradientDrawable
+import android.graphics.drawable.StateListDrawable
 import android.os.Build
 import android.view.View
 import android.widget.ImageView
@@ -58,12 +60,28 @@ interface Colors {
     /** set a background to the [view], may replace or adjust existing background */
     fun setBackground(view: View, color: ColorType)
 
-    /** returns a colored drawable selected from [attr], which must contain using R.styleable.KeyboardView_* */
-    fun selectAndColorDrawable(attr: TypedArray, color: ColorType): Drawable {
+    /** Sellby: when key borders are on, returns a fully self-built (fill+independently-colored
+     *  stroke) drawable for the given key background type, bypassing the normal tint-based
+     *  coloring path entirely - see DefaultColors' override for why (tinting a baked-in stroke
+     *  color would make it invisible in dark mode, since MULTIPLY-blending any color against the
+     *  near-black key tint always collapses toward that same near-black). Returns null (falls
+     *  through to the existing behavior, unchanged) for every case this isn't relevant to -
+     *  DynamicColors/AllColors never override this, so they're completely unaffected. */
+    fun sellbyBorderedDrawable(color: ColorType): Drawable? = null
+
+    /** returns a colored drawable selected from [attr], which must contain using R.styleable.KeyboardView_*.
+     *  [excludeSellbyBorder] - see KeyboardView.java's call sites - skips sellbyBorderedDrawable()
+     *  for this one call (currently used only to keep EmojiPageKeyboardView's emoji grid cells out
+     *  of the bordered-key style). No default value: Kotlin default-parameter values aren't visible
+     *  to Java callers (KeyboardView.java) via interface default methods, so every call site there
+     *  passes it explicitly (false for the ones this doesn't apply to). */
+    fun selectAndColorDrawable(attr: TypedArray, color: ColorType, excludeSellbyBorder: Boolean): Drawable {
+        if (!excludeSellbyBorder) sellbyBorderedDrawable(color)?.let { return it }
         val drawable = when (color) {
             KEY_BACKGROUND, MORE_SUGGESTIONS_WORD_BACKGROUND, ACTION_KEY_POPUP_KEYS_BACKGROUND, POPUP_KEYS_BACKGROUND ->
                 attr.getDrawable(R.styleable.KeyboardView_keyBackground)
             FUNCTIONAL_KEY_BACKGROUND -> attr.getDrawable(R.styleable.KeyboardView_functionalKeyBackground)
+            BADGE_KEY_BACKGROUND -> attr.getDrawable(R.styleable.KeyboardView_badgeKeyBackground)
             SPACE_BAR_BACKGROUND -> {
                 if (hasKeyBorders) attr.getDrawable(R.styleable.KeyboardView_spacebarBackground)
                 else attr.getDrawable(R.styleable.KeyboardView_spacebarNoBorderBackground)
@@ -283,6 +301,7 @@ class DynamicColors(context: Context, override val themeStyle: String, override 
         KEY_HINT_TEXT -> keyHintText
         SPACE_BAR_TEXT -> spaceBarText
         FUNCTIONAL_KEY_BACKGROUND, EMOJI_SEARCH_BACKGROUND -> if (!isNight) functionalKey else doubleAdjustedKeyBackground
+        BADGE_KEY_BACKGROUND -> if (!isNight) functionalKey else doubleAdjustedKeyBackground
         SPACE_BAR_BACKGROUND -> spaceBar
         MORE_SUGGESTIONS_WORD_BACKGROUND, MAIN_BACKGROUND -> background
         KEY_BACKGROUND -> keyBackground
@@ -299,6 +318,7 @@ class DynamicColors(context: Context, override val themeStyle: String, override 
             MORE_SUGGESTIONS_WORD_BACKGROUND -> backgroundStateList
             KEY_BACKGROUND -> keyStateList
             FUNCTIONAL_KEY_BACKGROUND -> functionalKeyStateList
+            BADGE_KEY_BACKGROUND -> functionalKeyStateList
             ACTION_KEY_BACKGROUND -> actionKeyStateList
             SPACE_BAR_BACKGROUND -> spaceBarStateList
             POPUP_KEYS_BACKGROUND -> adjustedBackgroundStateList
@@ -398,6 +418,7 @@ class DefaultColors (
     private val functionalKeyStateList: ColorStateList
     private val actionKeyStateList: ColorStateList
     private val spaceBarStateList: ColorStateList
+    private val badgeKeyStateList: ColorStateList
     private val adjustedBackgroundStateList: ColorStateList
     private val stripBackgroundList: ColorStateList
     private val toolbarKeyStateList = activatedStateList(
@@ -451,6 +472,7 @@ class DefaultColors (
                 else pressedStateList(brightenOrDarken(accent, true), accent)
             spaceBarStateList = if (themeStyle == STYLE_HOLO) pressedStateList(spaceBar, spaceBar)
                 else pressedStateList(brightenOrDarken(spaceBar, true), spaceBar)
+            badgeKeyStateList = pressedStateList(brightenOrDarken(functionalKey, true), functionalKey)
         } else {
             // need to set color to background if key borders are disabled, or there will be ugly keys
             backgroundStateList = pressedStateList(brightenOrDarken(background, true), background)
@@ -459,6 +481,8 @@ class DefaultColors (
             actionKeyStateList = if (themeStyle == STYLE_HOLO) functionalKeyStateList
                 else pressedStateList(brightenOrDarken(accent, true), accent)
             spaceBarStateList = pressedStateList(brightenOrDarken(spaceBar, true), spaceBar)
+            // badge keys (comma/period/?123) keep a persistent pill even without key borders, unlike normal/functional keys
+            badgeKeyStateList = pressedStateList(brightenOrDarken(functionalKey, true), functionalKey)
         }
         keyTextFilter = colorFilter(keyText)
         actionKeyIconColorFilter = when {
@@ -466,6 +490,49 @@ class DefaultColors (
             // the white icon may not have enough contrast, and can't be adjusted by the user
             isBrightColor(accent) -> colorFilter(Color.DKGRAY)
             else -> null
+        }
+    }
+
+    override fun sellbyBorderedDrawable(color: ColorType): Drawable? {
+        if (!hasKeyBorders) return null
+        val fill = when (color) {
+            // Gboard-style solid tile instead of a thin stroke on top of an invisible fill: the
+            // previous version filled regular character keys with [keyBackground], which is
+            // DELIBERATELY identical to [background] in both THEME_LIGHT/THEME_DARK (that's what
+            // makes the flat/no-border look flat) - so turning "Border pada Tombol" on only ever
+            // added a stroke around an otherwise-invisible key, never a visible block. Reusing
+            // [functionalKey] here (same value FUNCTIONAL_KEY_BACKGROUND/BADGE_KEY_BACKGROUND
+            // already resolve to) gives every ordinary key the same genuinely-distinct, already-
+            // tuned-per-theme tile color the spacebar/function-key pills use - matching the
+            // reference screenshot, where Gboard's whole keyboard (letters included) shares one
+            // uniform tile gray, not a separate shade per key type.
+            KEY_BACKGROUND, FUNCTIONAL_KEY_BACKGROUND, BADGE_KEY_BACKGROUND -> functionalKey
+            SPACE_BAR_BACKGROUND -> spaceBar
+            ACTION_KEY_BACKGROUND -> accent
+            else -> return null
+        }
+        return borderedKeyDrawable(fill)
+    }
+
+    /** Builds a rounded-square, solid-fill key background (Gboard-style block, no stroke - once
+     *  the fill itself is genuinely distinct from the keyboard background, as it now always is
+     *  above, a stroke on top is redundant rather than crisp). Pressed-state fill uses the exact
+     *  same brightenOrDarken(fill, true) formula keyStateList/functionalKeyStateList/etc. already
+     *  use above for the tinted path, so these fill colors are pixel-identical to what tinting
+     *  would have produced. Density comes from Resources.getSystem() since this class has no
+     *  Context reference - fine for an IME, which only ever renders on the device's one primary
+     *  display. */
+    private fun borderedKeyDrawable(fill: Int): Drawable {
+        val density = Resources.getSystem().displayMetrics.density
+        val cornerRadiusPx = 8f * density
+        fun shape(fillColor: Int) = GradientDrawable().apply {
+            shape = GradientDrawable.RECTANGLE
+            cornerRadius = cornerRadiusPx
+            setColor(fillColor)
+        }
+        return StateListDrawable().apply {
+            addState(intArrayOf(android.R.attr.state_pressed), shape(brightenOrDarken(fill, true)))
+            addState(intArrayOf(), shape(fill))
         }
     }
 
@@ -480,7 +547,7 @@ class DefaultColors (
             POPUP_KEY_TEXT, POPUP_KEY_ICON, KEY_PREVIEW_TEXT, EMOJI_SEARCH_TEXT, CLIPBOARD_SUGGESTION_ICON -> keyText
         KEY_HINT_TEXT -> keyHintText
         SPACE_BAR_TEXT -> spaceBarText
-        FUNCTIONAL_KEY_BACKGROUND, EMOJI_SEARCH_BACKGROUND -> functionalKey
+        FUNCTIONAL_KEY_BACKGROUND, EMOJI_SEARCH_BACKGROUND, BADGE_KEY_BACKGROUND -> functionalKey
         SPACE_BAR_BACKGROUND -> spaceBar
         MORE_SUGGESTIONS_WORD_BACKGROUND, MAIN_BACKGROUND -> background
         KEY_BACKGROUND -> keyBackground
@@ -497,6 +564,7 @@ class DefaultColors (
             MORE_SUGGESTIONS_WORD_BACKGROUND -> backgroundStateList
             KEY_BACKGROUND -> keyStateList
             FUNCTIONAL_KEY_BACKGROUND -> functionalKeyStateList
+            BADGE_KEY_BACKGROUND -> badgeKeyStateList
             ACTION_KEY_BACKGROUND -> actionKeyStateList
             SPACE_BAR_BACKGROUND -> spaceBarStateList
             POPUP_KEYS_BACKGROUND -> adjustedBackgroundStateList
@@ -627,6 +695,7 @@ enum class ColorType {
     EMOJI_SEARCH_BACKGROUND,
     FUNCTIONAL_KEY_TEXT,
     FUNCTIONAL_KEY_BACKGROUND,
+    BADGE_KEY_BACKGROUND,
     GESTURE_TRAIL,
     GESTURE_PREVIEW,
     KEY_BACKGROUND,

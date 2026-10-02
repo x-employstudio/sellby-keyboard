@@ -4,6 +4,7 @@ plugins {
     id("com.android.application")
     kotlin("plugin.serialization") version "2.4.0"
     kotlin("plugin.compose") version "2.4.0"
+    id("com.google.devtools.ksp") version "2.3.12"
 }
 
 android {
@@ -11,7 +12,7 @@ android {
 
     defaultConfig {
         applicationId = "com.sellby.keyboard"
-        minSdk = 21
+        minSdk = 23
         targetSdk = 37
         versionCode = 4101
         versionName = "4.1"
@@ -123,6 +124,12 @@ dependencies {
 
     // kotlin
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.11.0")
+
+    // Sellby: Room (Fase 4 Diperluas data layer - separate from the existing hand-rolled
+    // Database.kt/ClipboardDao SQLiteOpenHelper, which stays untouched)
+    implementation("androidx.room:room-runtime:2.8.5")
+    implementation("androidx.room:room-ktx:2.8.5")
+    ksp("androidx.room:room-compiler:2.8.5")
 
     // compose
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.5")

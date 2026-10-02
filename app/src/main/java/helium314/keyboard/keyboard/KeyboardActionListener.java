@@ -120,6 +120,7 @@ public interface KeyboardActionListener {
     void onEndSpaceSwipe();
     void toggleLayout(LayoutDirective.Utility layout, int autoCapsFlags, @Nullable RecapitalizeMode recapitalizeMode);
     void onLongPressAlphaSymbolForNumpad();
+    void onLongPressUtilityLayout(LayoutDirective.Utility layout);
 
     void onMoveDeletePointer(int steps);
     void onUpWithDeletePointerActive();
@@ -175,6 +176,8 @@ public interface KeyboardActionListener {
         public void toggleLayout(LayoutDirective.Utility layout, int autoCapsFlags, @Nullable RecapitalizeMode recapitalizeMode) {}
         @Override
         public void onLongPressAlphaSymbolForNumpad() {}
+        @Override
+        public void onLongPressUtilityLayout(LayoutDirective.Utility layout) {}
         @Override
         public void onEndSpaceSwipe() {}
         @Override

@@ -36,6 +36,7 @@ public sealed interface LayoutDirective {
         CLIPBOARD(KeyboardState.Mode.CLIPBOARD),
         NUMPAD(KeyboardState.Mode.NUMPAD),
         DPAD(KeyboardState.Mode.DPAD),
+        CALCULATOR(KeyboardState.Mode.CALCULATOR),
     ;
         private final KeyboardState.Mode mMode;
 

@@ -89,6 +89,11 @@ public final class MainKeyboardView extends KeyboardView implements DrawingProxy
     private static final float LANGUAGE_ON_SPACEBAR_TEXT_SHADOW_RADIUS_DISABLED = -1.0f;
     // The minimum x-scale to fit the language name on spacebar.
     private static final float MINIMUM_XSCALE_OF_LANGUAGE_NAME = 0.8f;
+    // Sellby: the language/watermark text on the spacebar only makes sense on the WIDE alphabet
+    // spacebar - narrow space-like keys on Numpad/Symbols-style layouts (a single grid cell, same
+    // width as a digit/comma key) are too small for it and the text ends up squeezed/overlapping
+    // neighbours. Skip drawing unless the key occupies a sizeable share of the keyboard's width.
+    private static final float MINIMUM_SPACEBAR_WIDTH_RATIO_FOR_TEXT = 0.3f;
 
     // Stuff to draw altCodeWhileTyping keys.
     private final ObjectAnimator mAltCodeKeyWhileTypingFadeoutAnimator;
@@ -711,7 +716,8 @@ public final class MainKeyboardView extends KeyboardView implements DrawingProxy
         final int code = key.getCode();
         if (code == Constants.CODE_SPACE) {
             // If input language are explicitly selected.
-            if (mLanguageOnSpacebarFormatType != LanguageOnSpacebarUtils.FORMAT_TYPE_NONE) {
+            if (mLanguageOnSpacebarFormatType != LanguageOnSpacebarUtils.FORMAT_TYPE_NONE
+                    && isSpacebarWideEnoughForText(key)) {
                 drawLanguageOnSpacebar(key, canvas, paint);
             }
             // Whether space key needs to show the "..." popup hint for special purposes
@@ -801,6 +807,14 @@ public final class MainKeyboardView extends KeyboardView implements DrawingProxy
             newLocales.add(locale);
         }
         return newLocales;
+    }
+
+    private boolean isSpacebarWideEnoughForText(final Key key) {
+        final Keyboard keyboard = getKeyboard();
+        if (keyboard == null || keyboard.mOccupiedWidth <= 0) {
+            return false;
+        }
+        return key.getWidth() >= keyboard.mOccupiedWidth * MINIMUM_SPACEBAR_WIDTH_RATIO_FOR_TEXT;
     }
 
     private void drawLanguageOnSpacebar(final Key key, final Canvas canvas, final Paint paint) {

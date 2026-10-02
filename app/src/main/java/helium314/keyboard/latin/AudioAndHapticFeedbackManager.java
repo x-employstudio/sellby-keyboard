@@ -110,6 +110,21 @@ public final class AudioAndHapticFeedbackManager {
             vibrate(mSettingsValues.mKeypressVibrationDuration);
             return;
         }
+        // BUG FIX: View.performHapticFeedback(KEYBOARD_TAP, ...) silently produced no vibration at
+        // all on report (regular typing never vibrated - both KEY_PRESS and KEY_REPEAT use this
+        // same feedbackConstant - while slide-gesture feedback, which uses CLOCK_TICK, and
+        // long-press, which uses LONG_PRESS, worked fine). FLAG_IGNORE_GLOBAL_SETTING is documented
+        // to bypass the user's global haptic-feedback toggle, but KEYBOARD_TAP/VIRTUAL_KEY specifically
+        // have a long history of being gated further by OEM input stacks even with that flag set.
+        // Bypassing the platform API for this one constant and vibrating directly (the same
+        // mVibrator.vibrate() already used just above for a custom duration, just with a short
+        // default here since the user hasn't set one) sidesteps that entirely - every other
+        // feedbackConstant keeps using the standard path below, unchanged, since it's already
+        // confirmed working.
+        if (hapticEvent.feedbackConstant == HapticFeedbackConstants.KEYBOARD_TAP) {
+            vibrate(DEFAULT_KEYBOARD_TAP_VIBRATION_DURATION_MS);
+            return;
+        }
         // Go ahead with the system default
         if (viewToPerformHapticFeedbackOn != null) {
             viewToPerformHapticFeedbackOn.performHapticFeedback(
@@ -117,6 +132,8 @@ public final class AudioAndHapticFeedbackManager {
                     HapticFeedbackConstants.FLAG_IGNORE_GLOBAL_SETTING);
         }
     }
+
+    private static final long DEFAULT_KEYBOARD_TAP_VIBRATION_DURATION_MS = 20L;
 
     public void onSettingsChanged(final SettingsValues settingsValues) {
         mSettingsValues = settingsValues;

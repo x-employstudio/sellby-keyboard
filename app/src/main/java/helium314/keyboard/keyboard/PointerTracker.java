@@ -25,6 +25,8 @@ import helium314.keyboard.keyboard.internal.GestureEnabler;
 import helium314.keyboard.keyboard.internal.GestureStrokeDrawingParams;
 import helium314.keyboard.keyboard.internal.GestureStrokeDrawingPoints;
 import helium314.keyboard.keyboard.internal.GestureStrokeRecognitionParams;
+import helium314.keyboard.keyboard.internal.KeyboardIconsSet;
+import helium314.keyboard.keyboard.internal.LayoutDirective;
 import helium314.keyboard.keyboard.internal.PointerTrackerQueue;
 import helium314.keyboard.keyboard.internal.TimerProxy;
 import helium314.keyboard.keyboard.internal.TypingTimeRecorder;
@@ -1184,6 +1186,38 @@ public final class PointerTracker implements PointerTrackerQueue.Element,
             sListener.onLongPressAlphaSymbolForNumpad();
             return;
         }
+        // Sellby: holding a comma/period combo-icon key (character+shortcut-glyph baked into one
+        // icon, assigned per mode/page in TextKeyData.kt's getComboIconName()) opens the matching
+        // panel directly, bypassing the popup-keys panel entirely. 5 distinct icon names (one per
+        // actual on-screen glyph+badge pairing - comma/numpad vs "<"/numpad are visually different
+        // icons even though they open the same Numpad panel, same for period/calculator vs
+        // ">"/calculator) grouped into the 3 target panels here.
+        final String iconName = key.getIconName();
+        if (KeyboardIconsSet.NAME_COMBO_COMMA_SMILE.equals(iconName)) {
+            cancelKeyTracking();
+            sListener.onLongPressUtilityLayout(LayoutDirective.Utility.EMOJI);
+            sListener.onReleaseKey(code, false);
+            return;
+        }
+        if (KeyboardIconsSet.NAME_COMBO_COMMA_NUMPAD.equals(iconName) || KeyboardIconsSet.NAME_COMBO_LESS_THAN_NUMPAD.equals(iconName)) {
+            cancelKeyTracking();
+            sListener.onLongPressUtilityLayout(LayoutDirective.Utility.NUMPAD);
+            sListener.onReleaseKey(code, false);
+            return;
+        }
+        if (KeyboardIconsSet.NAME_COMBO_PERIOD_CALCULATOR.equals(iconName) || KeyboardIconsSet.NAME_COMBO_GREATER_THAN_CALCULATOR.equals(iconName)) {
+            cancelKeyTracking();
+            sListener.onLongPressUtilityLayout(LayoutDirective.Utility.CALCULATOR);
+            sListener.onReleaseKey(code, false);
+            return;
+        }
+        // Sellby: holding the action key (Enter) opens Clipboard directly, no popup bubble first.
+        if (key.getBackgroundType() == Key.BACKGROUND_TYPE_ACTION) {
+            cancelKeyTracking();
+            sListener.onLongPressUtilityLayout(LayoutDirective.Utility.CLIPBOARD);
+            sListener.onReleaseKey(code, false);
+            return;
+        }
 
         setReleasedKeyGraphics(key, false);
         final PopupKeysPanel popupKeysPanel = sDrawingProxy.showPopupKeysKeyboard(key, this);
@@ -1285,13 +1319,18 @@ public final class PointerTracker implements PointerTrackerQueue.Element,
             return;
         }
 
-        int delay = getLongPressTimeout(code);
+        int delay = getLongPressTimeout(key, code);
         if (delay <= 0) return;
         sTimerProxy.startLongPressTimerOf(this, delay);
     }
 
-    private int getLongPressTimeout(int code) {
+    private int getLongPressTimeout(Key key, int code) {
         int longpressTimeout = Settings.getValues().mKeyLongpressTimeout;
+        if (key.getBackgroundType() == Key.BACKGROUND_TYPE_ACTION) {
+            // Sellby: Enter opens Clipboard on hold - fixed short delay, independent of the
+            // regular key-longpress setting.
+            return 100;
+        }
         return switch (code) {
             case Constants.CODE_SPACE, KeyCode.SHIFT, KeyCode.SYMBOL_ALPHA
                 // We use slightly longer timeout for space, shift-lock, and the numpad long-press.

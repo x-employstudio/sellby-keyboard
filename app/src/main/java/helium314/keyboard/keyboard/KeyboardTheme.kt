@@ -151,27 +151,38 @@ private constructor(val themeId: Int, @JvmField val mStyleId: Int) {
                     else getThemeColors(THEME_LIGHT, themeStyle, context, prefs, isNight)
                 }
                 THEME_LIGHT -> DefaultColors(
+                    // Sellby: colors sourced from sellby_keyboard.dart (light mode key/background colors)
                     themeStyle,
                     hasBorders,
-                    ContextCompat.getColor(context, R.color.gesture_trail_color_lxx_light),
-                    ContextCompat.getColor(context, R.color.keyboard_background_lxx_light_border),
-                    ContextCompat.getColor(context, R.color.key_background_normal_lxx_light_border),
-                    ContextCompat.getColor(context, R.color.key_background_functional_lxx_light_border),
-                    ContextCompat.getColor(context, R.color.key_background_normal_lxx_light_border),
-                    ContextCompat.getColor(context, R.color.key_text_color_lxx_light),
-                    ContextCompat.getColor(context, R.color.key_hint_letter_color_lxx_light),
+                    ContextCompat.getColor(context, R.color.gesture_trail_color_lxx_light), // accent #0EA5C6
+                    Color.WHITE, // background
+                    Color.WHITE, // keyBackground: blends with background, no visible key box
+                    "#E2E8F0".toColorInt(), // functionalKey: pill background (spacebar/symbol-switch/comma-icon keys)
+                    "#E2E8F0".toColorInt(), // spaceBar
+                    "#1E293B".toColorInt(), // keyText
+                    "#64748B".toColorInt(), // keyHintText
+                    // Sellby: "Sellby" watermark text color on the spacebar - one shade darker
+                    // than the spaceBar fill above (#E2E8F0) for a bit more clarity than the
+                    // initial #CBD5E1 (too close to the fill to read well), still lighter/more
+                    // muted than the normal keyHintText (#64748B) so it stays a subtle watermark.
+                    spaceBarText = "#94A3B8".toColorInt(),
                     keyboardBackground = backgroundImage
                 )
                 THEME_DARK -> DefaultColors(
+                    // Sellby: colors sourced from sellby_keyboard.dart (dark mode key/background colors)
                     themeStyle,
                     hasBorders,
-                    ContextCompat.getColor(context, R.color.gesture_trail_color_lxx_dark),
-                    "#263238".toColorInt(),
-                    "#364248".toColorInt(),
-                    "#2d393f".toColorInt(),
-                    "#364248".toColorInt(),
-                    ContextCompat.getColor(context, R.color.key_text_color_lxx_dark),
-                    ContextCompat.getColor(context, R.color.key_hint_letter_color_lxx_dark),
+                    ContextCompat.getColor(context, R.color.gesture_trail_color_lxx_dark), // accent #0EA5C6
+                    "#17181C".toColorInt(), // background
+                    "#17181C".toColorInt(), // keyBackground: blends with background, no visible key box
+                    "#26272C".toColorInt(), // functionalKey: pill background (spacebar/symbol-switch/comma-icon keys)
+                    "#383A42".toColorInt(), // spaceBar
+                    Color.WHITE, // keyText
+                    "#8E909A".toColorInt(), // keyHintText
+                    // Sellby: same idea as THEME_LIGHT above - one shade brighter than the initial
+                    // #475569 for a bit more clarity against the #383A42 spaceBar fill, still more
+                    // muted than keyHintText (#8E909A) so it stays a subtle watermark.
+                    spaceBarText = "#64748B".toColorInt(),
                     keyboardBackground = backgroundImage
                 )
                 THEME_HOLO_WHITE -> DefaultColors(

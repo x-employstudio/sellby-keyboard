@@ -13,30 +13,32 @@ import android.annotation.SuppressLint;
 import android.content.Context;
 import android.content.res.Resources;
 import android.content.res.TypedArray;
+import android.graphics.Color;
+import android.graphics.drawable.GradientDrawable;
+import android.os.Handler;
+import android.os.Looper;
 import android.util.AttributeSet;
+import android.util.TypedValue;
 import android.view.LayoutInflater;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.inputmethod.EditorInfo;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
+import android.widget.TextView;
 
 import androidx.annotation.NonNull;
+import androidx.core.content.ContextCompat;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import androidx.viewpager2.widget.ViewPager2;
 
 import helium314.keyboard.event.HapticEvent;
 import helium314.keyboard.keyboard.Key;
-import helium314.keyboard.keyboard.Keyboard;
 import helium314.keyboard.keyboard.KeyboardActionListener;
-import helium314.keyboard.keyboard.KeyboardElement;
 import helium314.keyboard.keyboard.KeyboardLayoutSet;
 import helium314.keyboard.keyboard.KeyboardSwitcher;
-import helium314.keyboard.keyboard.KeyboardView;
-import helium314.keyboard.keyboard.MainKeyboardView;
-import helium314.keyboard.keyboard.PointerTracker;
-import helium314.keyboard.keyboard.internal.KeyDrawParams;
 import helium314.keyboard.keyboard.internal.KeyVisualAttributes;
 import helium314.keyboard.keyboard.internal.keyboard_parser.EmojiParserKt;
 import helium314.keyboard.keyboard.internal.keyboard_parser.floris.KeyCode;
@@ -49,6 +51,7 @@ import helium314.keyboard.latin.RichInputMethodSubtype;
 import helium314.keyboard.latin.SingleDictionaryFacilitator;
 import helium314.keyboard.latin.common.ColorType;
 import helium314.keyboard.latin.common.Colors;
+import helium314.keyboard.latin.common.Constants;
 import helium314.keyboard.latin.settings.Settings;
 import helium314.keyboard.latin.settings.SettingsValues;
 import helium314.keyboard.latin.utils.DictionaryInfoUtils;
@@ -235,17 +238,29 @@ public final class EmojiPalettesView extends LinearLayout
         setMeasuredDimension(width, height);
     }
 
+    // Sellby: category tab is a fixed 36dp circle (teal-filled when active), scrollable strip
+    // instead of the stock equal-division top strip - see sellby_keyboard.dart's _EmojiSection.
+    private static final int TAB_SIZE_DP = 36;
+    private static final int TAB_MARGIN_DP = 2;
+    private static final int TAB_ICON_SIZE_DP = 19;
+
     private void addTab(LinearLayout host, EmojiCategory.Category category) {
         final ImageView iconView = new ImageView(getContext());
-        mColors.setBackground(iconView, ColorType.STRIP_BACKGROUND);
-        mColors.setColor(iconView, ColorType.EMOJI_CATEGORY);
-        iconView.setScaleType(ImageView.ScaleType.CENTER);
+        iconView.setScaleType(ImageView.ScaleType.FIT_CENTER);
         iconView.setImageResource(mEmojiCategory.getCategoryTabIcon(category));
         iconView.setContentDescription(mEmojiCategory.getAccessibilityDescription(category));
         iconView.setTag(category);
-        host.addView(iconView);
-        iconView.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f));
+        final float density = getResources().getDisplayMetrics().density;
+        final int size = (int) (TAB_SIZE_DP * density);
+        final int margin = (int) (TAB_MARGIN_DP * density);
+        final int iconPadding = (int) ((TAB_SIZE_DP - TAB_ICON_SIZE_DP) / 2f * density);
+        iconView.setPadding(iconPadding, iconPadding, iconPadding, iconPadding);
+        final LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(size, size);
+        lp.setMargins(margin, 0, margin, 0);
+        iconView.setLayoutParams(lp);
+        setTabSelected(iconView, category == mEmojiCategory.getCurrentCategory());
         iconView.setOnClickListener(this);
+        host.addView(iconView);
         if (category == EmojiCategory.Category.RECENTS) {
             iconView.setOnLongClickListener(v -> {
                 AudioAndHapticFeedbackManager.getInstance().performHapticAndAudioFeedback(KeyCode.NOT_SPECIFIED, this, HapticEvent.KEY_LONG_PRESS);
@@ -256,15 +271,26 @@ public final class EmojiPalettesView extends LinearLayout
         }
     }
 
+    private void setTabSelected(ImageView iconView, boolean selected) {
+        if (selected) {
+            final GradientDrawable bg = new GradientDrawable();
+            bg.setShape(GradientDrawable.OVAL);
+            bg.setColor(ContextCompat.getColor(getContext(), R.color.calculator_accent));
+            iconView.setBackground(bg);
+            iconView.setColorFilter(Color.WHITE);
+        } else {
+            iconView.setBackground(null);
+            mColors.setColor(iconView, ColorType.EMOJI_CATEGORY);
+        }
+    }
+
     @SuppressLint("ClickableViewAccessibility")
-    public void initialize() { // needs to be delayed for access to EmojiTabStrip, which is not a child of this view
+    public void initialize() {
         if (initialized) return;
         mEmojiCategory.initialize();
-        mTabStrip = (LinearLayout) KeyboardSwitcher.getInstance().getEmojiTabStrip();
-        if (Settings.getValues().isSecondaryStripVisible()) {
-            for (EmojiCategory.CategoryProperties properties : mEmojiCategory.getShownCategories()) {
-                addTab(mTabStrip, properties.getCategory());
-            }
+        mTabStrip = findViewById(R.id.emoji_category_tab_strip);
+        for (EmojiCategory.CategoryProperties properties : mEmojiCategory.getShownCategories()) {
+            addTab(mTabStrip, properties.getCategory());
         }
 
         mPager = findViewById(R.id.emoji_pager);
@@ -274,7 +300,73 @@ public final class EmojiPalettesView extends LinearLayout
         mEmojiLayoutParams.setCategoryPageIdViewProperties(mEmojiCategoryPageIndicatorView);
         setCurrentCategory(mEmojiCategory.getCurrentCategory(), true);
         mEmojiCategoryPageIndicatorView.setColors(mColors.get(ColorType.EMOJI_CATEGORY_SELECTED), mColors.get(ColorType.STRIP_BACKGROUND));
+        setupBottomBar();
         initialized = true;
+    }
+
+    /** Sellby: "?123" pill (back to letters) + scrollable category tabs + red backspace pill,
+     *  replacing the stock alpha/search/space/delete bottom row entirely - matches
+     *  sellby_keyboard.dart's _EmojiSection bottom row exactly (no spacebar in Emoji mode). */
+    private void setupBottomBar() {
+        final TextView backToAlpha = findViewById(R.id.emoji_back_to_alpha);
+        backToAlpha.setBackground(pillDrawable(mColors.get(ColorType.BADGE_KEY_BACKGROUND)));
+        backToAlpha.setTextColor(mColors.get(ColorType.FUNCTIONAL_KEY_TEXT));
+        backToAlpha.setOnClickListener(v ->
+                mKeyboardActionListener.onCodeInput(KeyCode.ALPHA, NOT_A_COORDINATE, NOT_A_COORDINATE, false));
+
+        final ImageView backspace = findViewById(R.id.emoji_backspace);
+        backspace.setImageResource(R.drawable.sym_keyboard_delete_lxx);
+        backspace.setColorFilter(Color.WHITE);
+        backspace.setBackground(pillDrawable(0xFFE53935));
+        setupBackspaceRepeat(backspace);
+    }
+
+    private GradientDrawable pillDrawable(int color) {
+        final GradientDrawable drawable = new GradientDrawable();
+        drawable.setShape(GradientDrawable.RECTANGLE);
+        drawable.setCornerRadius(500f * getResources().getDisplayMetrics().density);
+        drawable.setColor(color);
+        return drawable;
+    }
+
+    private final Handler mBackspaceHandler = new Handler(Looper.getMainLooper());
+    private Runnable mBackspaceRepeatRunnable;
+
+    @SuppressLint("ClickableViewAccessibility")
+    private void setupBackspaceRepeat(View view) {
+        view.setOnTouchListener((v, event) -> {
+            switch (event.getAction()) {
+                case MotionEvent.ACTION_DOWN -> {
+                    v.setPressed(true);
+                    deleteOneCharacter();
+                    final Runnable runnable = new Runnable() {
+                        @Override
+                        public void run() {
+                            deleteOneCharacter();
+                            mBackspaceHandler.postDelayed(this, 70);
+                        }
+                    };
+                    mBackspaceRepeatRunnable = runnable;
+                    mBackspaceHandler.postDelayed(runnable, 400);
+                    return true;
+                }
+                case MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                    if (mBackspaceRepeatRunnable != null) {
+                        mBackspaceHandler.removeCallbacks(mBackspaceRepeatRunnable);
+                        mBackspaceRepeatRunnable = null;
+                    }
+                    v.setPressed(false);
+                    return true;
+                }
+                default -> {
+                    return false;
+                }
+            }
+        });
+    }
+
+    private void deleteOneCharacter() {
+        mKeyboardActionListener.onCodeInput(KeyCode.DELETE, NOT_A_COORDINATE, NOT_A_COORDINATE, false);
     }
 
     /**
@@ -363,9 +455,6 @@ public final class EmojiPalettesView extends LinearLayout
                final EditorInfo editorInfo, final KeyboardActionListener keyboardActionListener) {
         initialize();
 
-        setupBottomRowKeyboard(editorInfo, keyboardActionListener);
-        final KeyDrawParams params = new KeyDrawParams();
-        params.updateParams(mEmojiLayoutParams.getBottomRowKeyboardHeight(), keyVisualAttr);
         new EmojiLayoutParams(getResources()).setEmojiListProperties(mPager); // necessary when floating
         setupSidePadding();
         initDictionaryFacilitator();
@@ -383,15 +472,6 @@ public final class EmojiPalettesView extends LinearLayout
         getRecentsKeyboard().addKeyFirst(key);
         if (initialized)
             mPager.getAdapter().notifyItemChanged(mEmojiCategory.getRecentTabId());
-    }
-
-    private void setupBottomRowKeyboard(EditorInfo editorInfo, KeyboardActionListener keyboardActionListener) {
-        MainKeyboardView keyboardView = findViewById(R.id.bottom_row_keyboard);
-        keyboardView.setKeyboardActionListener(keyboardActionListener);
-        PointerTracker.switchTo(keyboardView);
-        KeyboardLayoutSet kls = KeyboardLayoutSet.Builder.Companion.buildEmojiClipBottomRow(getContext(), editorInfo);
-        Keyboard keyboard = kls.getKeyboard(KeyboardElement.EMOJI_BOTTOM_ROW);
-        keyboardView.setKeyboard(keyboard);
     }
 
     private void setupSidePadding() {
@@ -452,14 +532,12 @@ public final class EmojiPalettesView extends LinearLayout
                                 mEmojiCategory.getCurrentCategory()), ! initial && ! isAnimationsDisabled());
             }
 
-            if (Settings.getValues().isSecondaryStripVisible()) {
+            if (mTabStrip != null) {
                 View old = mTabStrip.findViewWithTag(oldCategory);
                 View current = mTabStrip.findViewWithTag(category);
 
-                if (old instanceof ImageView)
-                    Settings.getValues().mColors.setColor((ImageView) old, ColorType.EMOJI_CATEGORY);
-                if (current instanceof ImageView)
-                    Settings.getValues().mColors.setColor((ImageView) current, ColorType.EMOJI_CATEGORY_SELECTED);
+                if (old instanceof ImageView) setTabSelected((ImageView) old, false);
+                if (current instanceof ImageView) setTabSelected((ImageView) current, true);
             }
         }
     }

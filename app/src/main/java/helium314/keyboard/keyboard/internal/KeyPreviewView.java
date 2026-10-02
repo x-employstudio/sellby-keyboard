@@ -7,6 +7,7 @@
 package helium314.keyboard.keyboard.internal;
 
 import android.content.Context;
+import android.graphics.Canvas;
 import android.graphics.Rect;
 import android.graphics.drawable.Drawable;
 import android.text.TextPaint;
@@ -33,6 +34,10 @@ public class KeyPreviewView extends TextView {
 
     private final Rect mBackgroundPadding = new Rect();
     private static final HashSet<String> sNoScaleXTextSet = new HashSet<>();
+    // Sellby: badge-icon previews (comma/period smile/numpad/calculator) are drawn manually,
+    // centered by actual view size, instead of relying on TextView's compound-drawable layout
+    // (which centers relative to the text line and is unreliable when there is no text).
+    private Drawable mPreviewIcon;
 
     public KeyPreviewView(final Context context, final AttributeSet attrs) {
         this(context, attrs, 0);
@@ -46,11 +51,22 @@ public class KeyPreviewView extends TextView {
     public void setPreviewVisual(final Key key, final KeyboardIconsSet iconsSet, final KeyDrawParams drawParams) {
         // What we show as preview should match what we show on a key top in onDraw().
         if (key.getIconName() != null) {
-            setCompoundDrawables(key.getPreviewIcon(iconsSet), null, null, null);
+            final Drawable previewIcon = key.getPreviewIcon(iconsSet);
+            if (previewIcon != null) {
+                // Sellby: badge icons (comma/period smile/numpad/calculator) are drawn small on the
+                // key itself; scale them up to match the preview text size so they don't look tiny
+                // inside the fixed-size preview bubble.
+                final int size = (int) (key.selectPreviewTextSize(drawParams) * 1.3f);
+                previewIcon.setBounds(0, 0, size, size);
+            }
+            mPreviewIcon = previewIcon;
+            setCompoundDrawables(null, null, null, null);
             setText(null);
+            invalidate();
             return;
         }
 
+        mPreviewIcon = null;
         setCompoundDrawables(null, null, null, null);
         setTextColor(drawParams.mPreviewTextColor);
         setTextSize(TypedValue.COMPLEX_UNIT_PX, key.selectPreviewTextSize(drawParams)
@@ -89,6 +105,23 @@ public class KeyPreviewView extends TextView {
 
     public static void clearTextCache() {
         sNoScaleXTextSet.clear();
+    }
+
+    @Override
+    protected void onDraw(final Canvas canvas) {
+        super.onDraw(canvas);
+        final Drawable previewIcon = mPreviewIcon;
+        if (previewIcon == null) {
+            return;
+        }
+        final int iconWidth = previewIcon.getBounds().width();
+        final int iconHeight = previewIcon.getBounds().height();
+        final int left = (getWidth() - iconWidth) / 2;
+        final int top = (getHeight() - iconHeight) / 2;
+        canvas.save();
+        canvas.translate(left, top);
+        previewIcon.draw(canvas);
+        canvas.restore();
     }
 
     private static float getTextWidth(final String text, final TextPaint paint) {

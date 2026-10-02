@@ -48,7 +48,9 @@ object Defaults {
     fun PREF_ICON_STYLE(prefs: SharedPreferences) = prefs.getString(Settings.PREF_THEME_STYLE, PREF_THEME_STYLE)!!
     const val PREF_THEME_COLORS = KeyboardTheme.THEME_LIGHT
     const val PREF_THEME_COLORS_NIGHT = KeyboardTheme.THEME_DARK
-    const val PREF_THEME_KEY_BORDERS = false
+    // Sellby: default ON (Gboard-style solid key tiles are the intended default look, not an
+    // opt-in toggle) - stock HeliBoard defaults this to false.
+    const val PREF_THEME_KEY_BORDERS = true
     @JvmField
     val PREF_THEME_DAY_NIGHT = Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q
     const val PREF_THEME_DARK_MODE = false
@@ -63,23 +65,31 @@ object Defaults {
     const val PREF_SHOW_EMOJI_DESCRIPTIONS = true
     @JvmField
     var PREF_POPUP_ON = true
-    const val PREF_AUTO_CORRECTION = true
+    // Sellby: these 5 (AUTO_CORRECTION/AUTOCORRECT_CAPITALIZED_SUGGESTION/SHOW_SUGGESTIONS/
+    // KEY_USE_PERSONALIZED_DICTS/BIGRAM_PREDICTIONS further below) default OFF instead of stock
+    // HeliBoard's ON - Sellby's suggestion strip is permanently replaced by its own 6-tab toolbar,
+    // with no UI to see or control any of this, so it was running invisibly and occasionally
+    // "fixing" text out from under the user (see KeyboardSwitcher.disableUnusedHeliboardCorrectionFeaturesOnce()
+    // for the force-migration that also fixes this on installs that already had the old `true`
+    // defaults persisted). Changing the default here only affects FRESH installs; that migration
+    // is what actually matters for anyone already running the app.
+    const val PREF_AUTO_CORRECTION = false
     const val PREF_MORE_AUTO_CORRECTION = false
     const val PREF_AUTO_CORRECT_CONFIDENCE = 0.24f
     const val PREF_AUTOCORRECT_SHORTCUTS = true
     const val PREF_BACKSPACE_REVERTS_AUTOCORRECT = true
-    const val PREF_AUTOCORRECT_CAPITALIZED_SUGGESTION = true
+    const val PREF_AUTOCORRECT_CAPITALIZED_SUGGESTION = false
     const val PREF_CENTER_SUGGESTION_TEXT_TO_ENTER = false
-    const val PREF_SHOW_SUGGESTIONS = true
+    const val PREF_SHOW_SUGGESTIONS = false
     const val PREF_ALWAYS_SHOW_SUGGESTIONS = false
     const val PREF_ALWAYS_SHOW_SUGGESTIONS_EXCEPT_WEB_TEXT = true
-    const val PREF_KEY_USE_PERSONALIZED_DICTS = true
+    const val PREF_KEY_USE_PERSONALIZED_DICTS = false
     const val PREF_KEY_USE_DOUBLE_SPACE_PERIOD = true
     const val PREF_BLOCK_POTENTIALLY_OFFENSIVE = true
     const val PREF_SHOW_LANGUAGE_SWITCH_KEY = false
     const val PREF_LANGUAGE_SWITCH_KEY = "internal"
     const val PREF_SHOW_EMOJI_KEY = false
-    const val PREF_SHOW_DPAD_KEY = true
+    const val PREF_SHOW_DPAD_KEY = false
     const val PREF_VARIABLE_TOOLBAR_DIRECTION = true
     const val PREF_ADDITIONAL_SUBTYPES = "de${Separators.SET}${ExtraValue.KEYBOARD_LAYOUT_SET}=MAIN:qwerty${Separators.SETS}" +
             "fr${Separators.SET}${ExtraValue.KEYBOARD_LAYOUT_SET}=MAIN:qwertz${Separators.SETS}" +
@@ -114,7 +124,7 @@ object Defaults {
     const val PREF_AUTOSPACE_BEFORE_GESTURE_TYPING = true
     const val PREF_SHIFT_REMOVES_AUTOSPACE = false
     const val PREF_ALWAYS_INCOGNITO_MODE = false
-    const val PREF_BIGRAM_PREDICTIONS = true
+    const val PREF_BIGRAM_PREDICTIONS = false
     const val PREF_SUGGEST_PUNCTUATION = false
     const val PREF_SUGGEST_CLIPBOARD_CONTENT = true
     const val PREF_GESTURE_INPUT = true
@@ -179,7 +189,10 @@ object Defaults {
     const val PREF_ABC_AFTER_SYMBOL_SPACE = true
     const val PREF_ABC_AFTER_NUMPAD_SPACE = false
     const val PREF_REMOVE_REDUNDANT_POPUPS = false
-    const val PREF_SPACE_BAR_TEXT = ""
+    // Sellby: branding watermark on the spacebar, reusing HeliBoard's own stock space-bar-text
+    // mechanism as-is (LanguageOnSpacebarUtils/MainKeyboardView.drawLanguageOnSpacebar) - see
+    // KeyboardSwitcher.applySellbySpacebarTextDefaultOnce() for the existing-install migration.
+    const val PREF_SPACE_BAR_TEXT = "Sellby"
     const val PREF_TIMESTAMP_FORMAT = "yyyy-MM-dd HH:mm:ss"
     const val PREF_RECENT_EMOJIS = ""
     const val PREF_LAST_SHOWN_EMOJI_CATEGORY_PAGE_ID = 0

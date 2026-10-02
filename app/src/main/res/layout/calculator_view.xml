@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    SPDX-License-Identifier: GPL-3.0-only
+-->
+<helium314.keyboard.keyboard.calculator.CalculatorView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_gravity="bottom"
+    android:orientation="vertical"
+    android:visibility="gone"
+    android:background="@android:color/transparent"
+    style="?attr/calculatorViewStyle">
+
+    <!-- Sellby: layout_marginStart/End (not CalculatorView's own padding) on every row - padding
+         set on CalculatorView itself (both via XML and, when that didn't help either, imperatively
+         in CalculatorView.kt's init{}) had no visible effect on device despite being correct by the
+         book, most likely neutralized somewhere in calculatorViewStyle's theme resolution. Margin is
+         a LayoutParams property stored on each CHILD row, not on CalculatorView - a completely
+         different mechanism from padding, unaffected by whatever was resetting that.
+
+         All 4 rows are flat, empty containers - every key (plain AND the specially-styled ones:
+         AC/backspace/ABC/=) is built and addView()'d in CalculatorView.kt's initialize(), in the
+         exact on-screen order needed. This used to be a mix of flat rows (2/3) and nested
+         sub-container+sibling rows (1/4, inherited from an earlier round) - that nesting turned out
+         to be a real sizing bug, not just an inconsistency: LinearLayout subtracts each child's own
+         margin at the level it's declared at, so a key nested one level deeper (inside a weight=4
+         sub-container) had its margin subtracted TWICE (once implicitly via the sub-container's own
+         weight share, once again for its own margin inside that share) while a top-level sibling
+         (AC/backspace/ABC/=) only had it subtracted ONCE - same weight ratio, different effective
+         width. Flat rows give every key margin subtracted at the exact same single level, so all 6
+         columns end up genuinely equal-width, matching rows 2/3 (which were already flat and never
+         had this problem). -->
+    <LinearLayout
+        android:id="@+id/calc_row1"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:layout_marginStart="5dp"
+        android:layout_marginEnd="5dp"
+        android:orientation="horizontal" />
+
+    <LinearLayout
+        android:id="@+id/calc_row2"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:layout_marginStart="5dp"
+        android:layout_marginEnd="5dp"
+        android:orientation="horizontal" />
+
+    <LinearLayout
+        android:id="@+id/calc_row3"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:layout_marginStart="5dp"
+        android:layout_marginEnd="5dp"
+        android:orientation="horizontal" />
+
+    <LinearLayout
+        android:id="@+id/calc_row4"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:layout_marginStart="5dp"
+        android:layout_marginEnd="5dp"
+        android:orientation="horizontal" />
+
+</helium314.keyboard.keyboard.calculator.CalculatorView>

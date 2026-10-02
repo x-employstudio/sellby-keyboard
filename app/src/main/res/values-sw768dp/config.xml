@@ -39,7 +39,8 @@
     <fraction name="config_key_hint_label_ratio_lxx">20%</fraction>
     <fraction name="config_key_shifted_letter_hint_ratio_holo">26%</fraction>
     <fraction name="config_key_shifted_letter_hint_ratio_lxx">26%</fraction>
-    <fraction name="config_language_on_spacebar_text_ratio">29.03%</fraction>
+    <!-- Sellby: -20% (29.03% -> 23.224%), see values/config.xml -->
+    <fraction name="config_language_on_spacebar_text_ratio">23.224%</fraction>
     <dimen name="config_key_hint_letter_padding">3dp</dimen>
     <dimen name="config_key_shifted_letter_hint_padding">3dp</dimen>
 

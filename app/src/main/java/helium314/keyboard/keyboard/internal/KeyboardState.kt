@@ -39,6 +39,7 @@ class KeyboardState(private val switchActions: SwitchActions) {
         fun setDpadKeyboard()
         fun setSymbolsKeyboard()
         fun setSymbolsShiftedKeyboard()
+        fun setCalculatorKeyboard()
 
         fun startDoubleTapShiftKeyTimer()
         fun popDoubleTapShiftKeyTimer(): Boolean
@@ -172,6 +173,7 @@ class KeyboardState(private val switchActions: SwitchActions) {
             Utility.CLIPBOARD -> switchActions.setClipboardKeyboard()
             Utility.NUMPAD -> switchActions.setNumpadKeyboard()
             Utility.DPAD -> switchActions.setDpadKeyboard()
+            Utility.CALCULATOR -> switchActions.setCalculatorKeyboard()
         }
         mode = layout.mode()
         if (layout is Alphabet) shiftMode = layout.shiftMode
@@ -186,6 +188,16 @@ class KeyboardState(private val switchActions: SwitchActions) {
         // We want sliding input to return to the original layout, so
         // don't remember the layout shown momentarily when holding
         loadLayout(Utility.NUMPAD)
+    }
+
+    /**
+     * Holding a badge key (comma/period) to jump straight into Emoji/Numpad/Calculator. Unlike
+     * numpad's sliding hold-gesture ([onLongPressAlphaSymbolForNumpad]) these panels are sticky
+     * (exited via their own "ABC"/pill key), so history is remembered - toggleLayout also gives
+     * holding again to close the panel for free.
+     */
+    fun onLongPressUtilityLayout(layout: Utility) {
+        toggleLayout(layout, 0, null)
     }
 
     fun toggleLayout(layout: Utility, autoCapsFlags: Int, recapitalizeMode: RecapitalizeMode?) {
@@ -505,6 +517,7 @@ class KeyboardState(private val switchActions: SwitchActions) {
         CLIPBOARD,
         NUMPAD,
         DPAD,
+        CALCULATOR,
     ;
         fun directive(shiftMode: ShiftMode, autoCapsFlags: Int, recapitalizeMode: RecapitalizeMode?): LayoutDirective {
             return when (this) {
@@ -515,6 +528,7 @@ class KeyboardState(private val switchActions: SwitchActions) {
                 CLIPBOARD -> Utility.CLIPBOARD
                 NUMPAD -> Utility.NUMPAD
                 DPAD -> Utility.DPAD
+                CALCULATOR -> Utility.CALCULATOR
             }
         }
     }

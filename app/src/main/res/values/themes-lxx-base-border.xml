@@ -12,6 +12,7 @@
         <item name="mainKeyboardViewStyle">@style/MainKeyboardView.LXX_Base_Border</item>
         <item name="emojiPalettesViewStyle">@style/EmojiPalettesView.LXX_Base_Border</item>
         <item name="clipboardHistoryViewStyle">@style/ClipboardHistoryView.LXX_Base_Border</item>
+        <item name="calculatorViewStyle">@style/CalculatorView</item>
         <item name="popupKeysKeyboardViewStyle">@style/PopupKeysKeyboardView.LXX_Base_Border</item>
         <item name="suggestionStripViewStyle">@style/SuggestionStripView.LXX_Base_Border</item>
     </style>

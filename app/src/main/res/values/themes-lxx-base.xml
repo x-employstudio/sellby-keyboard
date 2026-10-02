@@ -11,6 +11,7 @@
         <item name="mainKeyboardViewStyle">@style/MainKeyboardView.LXX_Base</item>
         <item name="emojiPalettesViewStyle">@style/EmojiPalettesView.LXX_Base</item>
         <item name="clipboardHistoryViewStyle">@style/ClipboardHistoryView.LXX_Base</item>
+        <item name="calculatorViewStyle">@style/CalculatorView</item>
         <item name="popupKeysKeyboardStyle">@style/PopupKeysKeyboard.LXX_Base</item>
         <item name="popupKeysKeyboardViewStyle">@style/PopupKeysKeyboardView.LXX_Base</item>
         <item name="popupKeysKeyboardViewForActionStyle">@style/PopupKeysKeyboardView.LXX_Base.Action</item>
@@ -31,6 +32,7 @@
         <item name="android:background">@color/keyboard_background_lxx_base</item>
         <item name="keyBackground">@drawable/btn_keyboard_key_lxx_base</item>
         <item name="functionalKeyBackground">@drawable/btn_keyboard_key_lxx_base</item>
+        <item name="badgeKeyBackground">@drawable/btn_keyboard_key_badge_lxx_base</item>
         <item name="keyTextInactivatedColor">@color/key_text_inactive_color_lxx_light</item>
         <item name="keyShiftedLetterHintInactivatedColor">@color/key_text_inactive_color_lxx_light</item>
         <item name="keyShiftedLetterHintActivatedColor">@color/key_text_color_lxx_light</item>
@@ -54,16 +56,16 @@
         parent="MainKeyboardView.LXX_Base"
         >
         <item name="categoryPageIndicatorBackground">@color/emoji_tab_page_indicator_background_lxx_base</item>
-        <item name="iconEmojiRecentsTab">@drawable/ic_emoji_recents_lxx</item>
-        <item name="iconEmojiSmileysTab">@drawable/ic_emoji_smileys_emotion_lxx</item>
-        <item name="iconEmojiPeopleTab">@drawable/ic_emoji_people_body_lxx</item>
-        <item name="iconEmojiNatureTab">@drawable/ic_emoji_animals_nature_lxx</item>
-        <item name="iconEmojiFoodTab">@drawable/ic_emoji_food_drink_lxx</item>
-        <item name="iconEmojiTravelPlacesTab">@drawable/ic_emoji_travel_places_lxx</item>
-        <item name="iconEmojiActivitiesTab">@drawable/ic_emoji_activities_lxx</item>
+        <item name="iconEmojiRecentsTab">@drawable/ic_emoji_recents_sellby</item>
+        <item name="iconEmojiSmileysTab">@drawable/sym_badge_smile_lxx</item>
+        <item name="iconEmojiPeopleTab">@drawable/ic_emoji_people_sellby</item>
+        <item name="iconEmojiNatureTab">@drawable/ic_emoji_nature_sellby</item>
+        <item name="iconEmojiFoodTab">@drawable/ic_emoji_food_sellby</item>
+        <item name="iconEmojiTravelPlacesTab">@drawable/ic_emoji_travel_sellby</item>
+        <item name="iconEmojiActivitiesTab">@drawable/ic_emoji_activities_sellby</item>
         <item name="iconEmojiObjectsTab">@drawable/ic_emoji_objects_lxx</item>
-        <item name="iconEmojiSymbolsTab">@drawable/ic_emoji_symbols_lxx</item>
-        <item name="iconEmojiFlagsTab">@drawable/ic_emoji_flags_lxx</item>
+        <item name="iconEmojiSymbolsTab">@drawable/ic_emoji_symbols_sellby</item>
+        <item name="iconEmojiFlagsTab">@drawable/ic_emoji_flags_sellby</item>
         <item name="iconEmojiEmoticonsTab">@drawable/ic_emoji_emoticons_lxx</item>
     </style>
     <style

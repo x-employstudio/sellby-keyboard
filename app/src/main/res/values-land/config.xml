@@ -27,8 +27,8 @@
     <!-- config_popup_keys_keyboard_key_height x -0.5 -->
     <dimen name="config_popup_keys_keyboard_vertical_correction_holo">-22.4dp</dimen>
     <dimen name="config_key_preview_offset_holo">1.6dp</dimen>
-    <dimen name="config_key_preview_offset_lxx">0dp</dimen>
-    <fraction name="config_key_preview_text_ratio">90%</fraction>
+    <dimen name="config_key_preview_offset_lxx">6.4dp</dimen>
+    <fraction name="config_key_preview_text_ratio">65%</fraction>
     <fraction name="config_key_letter_ratio_holo">65%</fraction>
     <fraction name="config_key_letter_ratio_lxx">65%</fraction>
     <fraction name="config_key_large_letter_ratio_holo">74%</fraction>
@@ -41,7 +41,8 @@
     <fraction name="config_key_hint_label_ratio_lxx">30%</fraction>
     <fraction name="config_key_shifted_letter_hint_ratio_holo">40%</fraction>
     <fraction name="config_key_shifted_letter_hint_ratio_lxx">40%</fraction>
-    <fraction name="config_language_on_spacebar_text_ratio">40.000%</fraction>
+    <!-- Sellby: -20% (40.000% -> 32.000%), see values/config.xml -->
+    <fraction name="config_language_on_spacebar_text_ratio">32.000%</fraction>
 
     <dimen name="config_suggestions_strip_height">36dp</dimen>
     <dimen name="config_suggestions_strip_edge_key_width">48dp</dimen>

@@ -1,10 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package helium314.keyboard.keyboard
 
+import android.os.Build
 import android.text.InputType
 import android.util.SparseArray
 import android.view.KeyEvent
 import android.view.inputmethod.InputMethodSubtype
+import android.widget.EditText
 import androidx.core.util.forEach
 import androidx.core.view.inputmethod.EditorInfoCompat
 import androidx.core.view.inputmethod.InputContentInfoCompat
@@ -31,7 +33,14 @@ import helium314.keyboard.latin.utils.GestureDataGatheringSettings
 import helium314.keyboard.latin.utils.RecapitalizeMode
 import helium314.keyboard.latin.utils.SubtypeSettings
 import helium314.keyboard.latin.utils.prefs
+import helium314.keyboard.sellby.input.AutoTextSuggestionEngine
+import helium314.keyboard.sellby.input.SellbyInputRouter
 import kotlin.math.abs
+
+// Sellby: lookback window for the Auto-Text suggestion strip's real-app read path (see
+// updateAutoTextSuggestions()) - generous enough for the longest realistic multi-word shortcut,
+// small enough to stay a cheap, cache-backed RichInputConnection read every keystroke.
+private const val SELLBY_AUTOTEXT_LOOKBACK = 60
 
 class KeyboardActionListenerImpl(private val latinIME: LatinIME, private val inputLogic: InputLogic) : KeyboardActionListener {
 
@@ -52,7 +61,7 @@ class KeyboardActionListenerImpl(private val latinIME: LatinIME, private val inp
 
     override fun onPressKey(primaryCode: Int, repeatCount: Int, pointerCount: Int, hapticEvent: HapticEvent) {
         metaOnPressKey(primaryCode)
-        keyboardSwitcher.onPressKey(primaryCode, pointerCount, latinIME.currentAutoCapsState, latinIME.currentRecapitalizeState)
+        keyboardSwitcher.onPressKey(primaryCode, pointerCount, sellbyAwareAutoCapsState(), sellbyAwareRecapitalizeState())
         // we need to use LatinIME for handling of key-down audio and haptics
         latinIME.hapticAndAudioFeedback(primaryCode, repeatCount, hapticEvent)
     }
@@ -64,8 +73,19 @@ class KeyboardActionListenerImpl(private val latinIME: LatinIME, private val inp
 
     override fun onReleaseKey(primaryCode: Int, withSliding: Boolean) {
         metaOnReleaseKey(primaryCode)
-        keyboardSwitcher.onReleaseKey(primaryCode, withSliding, latinIME.currentAutoCapsState, latinIME.currentRecapitalizeState)
+        keyboardSwitcher.onReleaseKey(primaryCode, withSliding, sellbyAwareAutoCapsState(), sellbyAwareRecapitalizeState())
     }
+
+    /** Sellby: latinIME.currentAutoCapsState/currentRecapitalizeState reflect the REAL app's
+     *  InputConnection, which never advances while a Sellby panel field is focused (its text lives
+     *  only in that EditText, see SellbyInputRouter) - so "start of sentence" auto-caps would look
+     *  permanently stuck, showing shift as always active. Suppress it while a field is focused;
+     *  Sellby fields behave like Flutter's own panel fields (manual shift only, no auto-caps). */
+    private fun sellbyAwareAutoCapsState(): Int =
+        if (SellbyInputRouter.activeField != null) 0 else latinIME.currentAutoCapsState
+
+    private fun sellbyAwareRecapitalizeState(): RecapitalizeMode? =
+        if (SellbyInputRouter.activeField != null) null else latinIME.currentRecapitalizeState
 
     override fun onKeyUp(keyCode: Int, keyEvent: KeyEvent): Boolean {
         emojiAltPhysicalKeyDetector.onKeyUp(keyEvent)
@@ -77,6 +97,27 @@ class KeyboardActionListenerImpl(private val latinIME: LatinIME, private val inp
     }
 
     override fun onKeyDown(keyCode: Int, keyEvent: KeyEvent): Boolean {
+        // Sellby: close an open toolbar panel on back - only below API 33 (Build.VERSION_CODES.
+        // TIRAMISU). On 33+ this app opts into predictive back (android:enableOnBackInvokedCallback
+        // in AndroidManifest.xml), and KeyboardSwitcher.registerSellbyBackCallbackApi33() handles
+        // back there instead via OnBackInvokedDispatcher. Confirmed via logcat this onKeyDown path
+        // STILL fires on 33+ even though KEYCODE_BACK "interception" is documented as unsupported
+        // there - its return value is just ignored by the framework, so BOTH handlers were racing:
+        // this one closed the panel first, then the OnBackInvokedCallback ran anyway and found
+        // nothing open, hiding the keyboard regardless. Gating this one to <33 removes that race.
+        if (keyCode == KeyEvent.KEYCODE_BACK && Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU
+            && keyboardSwitcher.sellbyToolbarView?.closeIfOpen() == true) {
+            // Matches the API 33+ path in KeyboardSwitcher.registerSellbyBackCallbackApi33(): back
+            // with a panel open should dismiss the whole keyboard along with it, not just step back
+            // to the plain toolbar. requestHideSelf() is the same call already used a few lines
+            // below for SwipeAction.HIDE_KEYBOARD - nothing new here, just reused. collapseImmediately()
+            // forces panelRegion synchronously closed (cancelling closeIfOpen()'s 200ms animation)
+            // right before the hide, so the panel can't get left mid-animation and reappear stale
+            // next time a field is tapped and the keyboard comes back - same fix as the 33+ path.
+            keyboardSwitcher.sellbyToolbarView?.collapseImmediately()
+            latinIME.requestHideSelf(0)
+            return true
+        }
         emojiAltPhysicalKeyDetector.onKeyDown(keyEvent)
         if (!ProductionFlags.IS_HARDWARE_KEYBOARD_SUPPORTED)
             return false
@@ -104,6 +145,28 @@ class KeyboardActionListenerImpl(private val latinIME: LatinIME, private val inp
     }
 
     override fun onCodeInput(primaryCode: Int, x: Int, y: Int, isKeyRepeat: Boolean) {
+        // Sellby: a panel EditText (e.g. Settings > Profil Toko) is focused - route characters and
+        // backspace straight into it instead of the app's InputConnection. See SellbyInputRouter.
+        //
+        // The keyboard's own Shift state machine still needs to react normally to this keypress -
+        // specifically KeyboardState.updateAlphabetShiftState(), which is what turns Shift back off
+        // after one letter (single manual press, not caps-lock) - or Shift visually stays "on"
+        // forever after the first letter. That update only happens inside latinIME.onEvent(), which
+        // we can't call here because it ALSO commits the character to the app's InputConnection -
+        // exactly what SellbyInputRouter just avoided. keyboardSwitcher.onEvent() is the inner call
+        // latinIME.onEvent() itself makes for this: it only updates KeyboardState, never touches
+        // InputConnection, so it's safe to call directly. (An earlier fix here called
+        // metaAfterCodeInput() instead, which turned out to only govern hardware Ctrl/Alt/Fn/Meta -
+        // it doesn't touch Shift at all, so it did nothing for this bug.)
+        if (SellbyInputRouter.handleCodeInput(primaryCode)) {
+            val mkv = keyboardSwitcher.mainKeyboardView
+            val event = if (primaryCode in combiningRange)
+                Event.createSoftwareDeadEvent(primaryCode, 0, metaState, mkv.getKeyX(x), mkv.getKeyY(y), null)
+            else Event.createSoftwareKeypressEvent(primaryCode, metaState, mkv.getKeyX(x), mkv.getKeyY(y), isKeyRepeat)
+            keyboardSwitcher.onEvent(event, sellbyAwareAutoCapsState(), sellbyAwareRecapitalizeState())
+            metaAfterCodeInput(primaryCode)
+            return
+        }
         when (primaryCode) {
             KeyCode.TOGGLE_AUTOCORRECT -> return settings.toggleAutoCorrect()
             KeyCode.TOGGLE_INCOGNITO_MODE -> {
@@ -150,9 +213,44 @@ class KeyboardActionListenerImpl(private val latinIME: LatinIME, private val inp
         }
         latinIME.onEvent(event)
         metaAfterCodeInput(primaryCode)
+        updateAutoTextSuggestions()
     }
 
-    override fun onTextInput(text: String?) = latinIME.onTextInput(text)
+    override fun onTextInput(text: String?) {
+        // Sellby: a panel field can now stay focused while browsing Emoji/Clipboard (see
+        // KeyboardSwitcher.setEmojiKeyboard()/setClipboardKeyboard()) - an emoji tap or a tapped
+        // Clipboard history entry both commit here, so route into that field the same way
+        // onCodeInput() already does for character-at-a-time typing, instead of always landing in
+        // the app's InputConnection.
+        if (text != null && SellbyInputRouter.handleTextInput(text)) return
+        latinIME.onTextInput(text)
+        updateAutoTextSuggestions()
+    }
+
+    /** Sellby: Auto-Text typing-triggered suggestion strip (sellby_keyboard.dart's
+     *  _buildAutoTextSuggestionToolbar) - checked after every keystroke that could have changed the
+     *  currently-focused REAL app text. By request, no Sellby panel field participates - nothing in
+     *  any panel currently consumes shortcuts while filling out a form field, so skip entirely
+     *  while one is focused (SellbyInputRouter.focus()/unfocus() already clear any strip that was
+     *  showing from a previous real-app match when a panel field gains/loses focus). */
+    private fun updateAutoTextSuggestions() {
+        if (SellbyInputRouter.activeField != null) return
+        val raw = connection.getTextBeforeCursor(SELLBY_AUTOTEXT_LOOKBACK, 0)?.toString().orEmpty()
+        val query = raw.trim()
+        if (query.isEmpty()) {
+            keyboardSwitcher.sellbyToolbarView?.updateAutoTextSuggestions(emptyList(), true) {}
+            return
+        }
+        val matches = AutoTextSuggestionEngine.matchesForRealApp(query)
+        keyboardSwitcher.sellbyToolbarView?.updateAutoTextSuggestions(matches, false) { item ->
+            val resolved = AutoTextSuggestionEngine.resolveTokens(latinIME, item.message)
+            connection.beginBatchEdit()
+            connection.finishComposingText()
+            connection.deleteTextBeforeCursor(query.length)
+            connection.commitText(resolved, 1)
+            connection.endBatchEdit()
+        }
+    }
 
     override fun onContent(content: InputContentInfoCompat) {
         val editorInfo = latinIME.currentInputEditorInfo
@@ -252,7 +350,27 @@ class KeyboardActionListenerImpl(private val latinIME: LatinIME, private val inp
         keyboardSwitcher.onLongPressAlphaSymbolForNumpad()
     }
 
+    override fun onLongPressUtilityLayout(layout: LayoutDirective.Utility) {
+        keyboardSwitcher.onLongPressUtilityLayout(layout)
+    }
+
     override fun onMoveDeletePointer(steps: Int) {
+        // Sellby: hold-backspace-and-slide (fast delete) - same "operate on the app's real
+        // InputConnection, which never advances for a Sellby field" gap as the other gestures.
+        // Extend the FIELD's own selection instead; PointerTracker sends steps incrementally
+        // (see mStartX += steps * sPointerStep before this call), so reading the field's current
+        // selection fresh each call and nudging it is the direct equivalent of the
+        // expectedSelectionStart-based math below.
+        SellbyInputRouter.activeField?.let { field ->
+            val text = field.text ?: return
+            val end = field.selectionEnd.coerceIn(0, text.length)
+            val actualSteps = sellbyActualSteps(field, steps)
+            val start = (field.selectionStart + actualSteps).coerceIn(0, text.length)
+            if (start > end) return
+            performHapticFeedback(HapticEvent.GESTURE_MOVE)
+            field.setSelection(start, end)
+            return
+        }
         inputLogic.finishInput()
         val end = connection.expectedSelectionEnd
         val actualSteps = actualSteps(steps)
@@ -268,7 +386,22 @@ class KeyboardActionListenerImpl(private val latinIME: LatinIME, private val inp
         return moveStepsToCharCount(text, steps)
     }
 
+    private fun sellbyActualSteps(field: EditText, steps: Int): Int {
+        val text = field.text ?: return steps
+        val start = field.selectionStart.coerceIn(0, text.length)
+        val end = field.selectionEnd.coerceIn(0, text.length)
+        val basis = if (steps > 0) text.subSequence(start, end) else text.subSequence(0, start)
+        return moveStepsToCharCount(basis, steps)
+    }
+
     override fun onUpWithDeletePointerActive() {
+        // Sellby: mirrors onCodeInput's own routing - if a panel field is focused, check/consume
+        // its own selection instead of the app's (which never had one, since we never touched it).
+        SellbyInputRouter.activeField?.let { field ->
+            if (field.selectionStart == field.selectionEnd) return
+            onCodeInput(KeyCode.DELETE, Constants.NOT_A_COORDINATE, Constants.NOT_A_COORDINATE, false)
+            return
+        }
         if (!connection.hasSelection()) return
         inputLogic.finishInput()
         onCodeInput(KeyCode.DELETE, Constants.NOT_A_COORDINATE, Constants.NOT_A_COORDINATE, false)
@@ -324,6 +457,20 @@ class KeyboardActionListenerImpl(private val latinIME: LatinIME, private val inp
         // for RTL languages we want to invert pointer movement
         val rtl = RichInputMethodManager.getInstance().currentSubtype.isRtlSubtype
         val steps = if (rtl) -rawSteps else rawSteps
+        // Sellby: spacebar-slide cursor move - same gap as onMoveDeletePointer, this moved the
+        // real app's cursor via InputConnection, which does nothing useful while typing into a
+        // Sellby field. moveStepsToCharCount() only needs a CharSequence, so it works directly on
+        // the field's own text.
+        SellbyInputRouter.activeField?.let { field ->
+            val text = field.text ?: return false
+            val cursor = field.selectionStart.coerceIn(0, text.length)
+            val moveSteps = if (steps < 0) moveStepsToCharCount(text.subSequence(0, cursor), steps)
+                else moveStepsToCharCount(text.subSequence(cursor, text.length), steps)
+            if (moveSteps == 0) return false
+            performHapticFeedback(HapticEvent.GESTURE_MOVE)
+            field.setSelection((cursor + moveSteps).coerceIn(0, text.length))
+            return true
+        }
         val moveSteps: Int
         if (steps < 0) {
             val text = connection.getTextBeforeCursor(-steps * 4, 0) ?: return false

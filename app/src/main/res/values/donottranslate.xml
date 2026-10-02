@@ -70,7 +70,11 @@
     <!-- Description for Hebrew 2 subtype. -->
     <string name="subtype_hebrew_1452_2" translatable="false">%s (1452-2)</string>
 
-    <string name="english_ime_name" translatable="false">Sellby</string>
+    <!-- Launcher/app-wide display name (Settings > Apps, home screen icon label, etc). -->
+    <string name="app_name" translatable="false">Sellby</string>
+    <!-- Shown specifically where the IME itself is named (system Language & Input list, the
+         in-keyboard "About" screen title). -->
+    <string name="english_ime_name" translatable="false">Sellby Keyboard</string>
     <!-- App slogan-->
     <string name="app_slogan" translatable="false">Keyboard bisnis untuk seller online.</string>
 

@@ -23,9 +23,50 @@
         android:id="@+id/emoji_category_page_id_view"
         android:layout_width="match_parent"
         android:layout_height="2dip" />
-    <helium314.keyboard.keyboard.MainKeyboardView
-        android:id="@+id/bottom_row_keyboard"
+    <LinearLayout
+        android:id="@+id/emoji_bottom_bar"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content" />
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingStart="8dp"
+        android:paddingEnd="8dp"
+        android:paddingTop="4dp"
+        android:paddingBottom="4dp">
+
+        <TextView
+            android:id="@+id/emoji_back_to_alpha"
+            android:layout_width="44dp"
+            android:layout_height="38dp"
+            android:gravity="center"
+            android:text="\?123"
+            android:textSize="14sp"
+            android:textStyle="bold" />
+
+        <HorizontalScrollView
+            android:id="@+id/emoji_tab_scroll_view"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:layout_marginStart="6dp"
+            android:layout_marginEnd="6dp"
+            android:scrollbars="none">
+
+            <LinearLayout
+                android:id="@+id/emoji_category_tab_strip"
+                android:layout_width="wrap_content"
+                android:layout_height="match_parent"
+                android:orientation="horizontal"
+                android:gravity="center_vertical" />
+
+        </HorizontalScrollView>
+
+        <ImageView
+            android:id="@+id/emoji_backspace"
+            android:layout_width="44dp"
+            android:layout_height="38dp"
+            android:padding="11dp" />
+
+    </LinearLayout>
 
 </helium314.keyboard.keyboard.emoji.EmojiPalettesView>

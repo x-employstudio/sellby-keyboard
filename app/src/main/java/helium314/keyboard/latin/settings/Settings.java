@@ -274,6 +274,19 @@ public final class Settings implements SharedPreferences.OnSharedPreferenceChang
             }
             ToolbarUtilsKt.clearCustomToolbarKeyCodes();
             loadSettings(mContext, mSettingsValues.mLocale, mSettingsValues.mInputAttributes);
+            // BUG FIX: AudioAndHapticFeedbackManager keeps its OWN separate cached SettingsValues
+            // (mSettingsValues/mSoundOn - see performAudioFeedback()/performHapticFeedback()),
+            // refreshed only via onSettingsChanged(). Previously that call happened ONLY from
+            // LatinIME's private loadSettings() wrapper, which only runs at specific points
+            // (onStartInputViewInternal, e.g. switching apps/fields) - so toggling Sound/Vibrate
+            // in the Sellby Settings panel updated the GLOBAL SettingsValues instantly (right
+            // above) but the audio/haptic manager kept using its stale cached copy until some
+            // unrelated later event happened to trigger LatinIME's reload, which read as a long,
+            // inconsistent delay rather than a real-time toggle. This listener already fires
+            // synchronously on every relevant SharedPreferences change (see reloadOnChanged()
+            // below), so refreshing the manager's cache right here as well closes that gap for
+            // every settings change, not just these two toggles specifically.
+            AudioAndHapticFeedbackManager.getInstance().onSettingsChanged(mSettingsValues);
             StatsUtils.onLoadSettings(mSettingsValues);
         } finally {
             mSettingsValuesLock.unlock();

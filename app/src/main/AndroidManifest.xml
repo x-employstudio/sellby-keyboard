@@ -14,7 +14,7 @@ SPDX-License-Identifier: Apache-2.0 AND GPL-3.0-only
     <uses-permission android:name="android.permission.WRITE_USER_DICTIONARY" />
     <uses-permission android:name="android.permission.READ_CONTACTS" />
 
-    <application android:label="@string/english_ime_name"
+    <application android:label="@string/app_name"
             android:name="helium314.keyboard.latin.App"
             android:icon="@mipmap/ic_launcher"
             android:roundIcon="@mipmap/ic_launcher_round"
@@ -40,7 +40,17 @@ SPDX-License-Identifier: Apache-2.0 AND GPL-3.0-only
         </service>
 
         <!-- Activities -->
+        <!-- Sellby: companion app (Fase 5) is now the sole launcher - see CompanionActivity below.
+             This Activity itself stays untouched (still reachable via SettingsActivity2 and from
+             the in-keyboard gear icon), only its LAUNCHER intent-filter moved. -->
         <activity android:name="helium314.keyboard.settings.SettingsActivity"
+                android:theme="@style/platformActivityTheme"
+                android:icon="@mipmap/ic_launcher"
+                android:windowSoftInputMode="adjustResize"
+                android:exported="true">
+        </activity>
+
+        <activity android:name="helium314.keyboard.sellby.companion.CompanionActivity"
                 android:theme="@style/platformActivityTheme"
                 android:icon="@mipmap/ic_launcher"
                 android:windowSoftInputMode="adjustResize"
@@ -69,6 +79,19 @@ SPDX-License-Identifier: Apache-2.0 AND GPL-3.0-only
         <activity android:name="helium314.keyboard.keyboard.emoji.EmojiSearchActivity" android:exported="false"
             android:theme="@style/TransparentActivityTheme" android:excludeFromRecents="true" android:noHistory="true"
             android:windowSoftInputMode="adjustResize|stateAlwaysVisible" android:configChanges="orientation|screenSize"/>
+
+        <!-- No noHistory here (unlike the other transparent helper activities): noHistory finishes
+             the activity the moment an opaque screen covers it, and an Activity Result can't be
+             delivered to an activity that already finished. taskAffinity="" keeps this proxy out of
+             the companion app's own task: with the default (package) affinity, FLAG_ACTIVITY_NEW_TASK
+             would land it on top of that task whenever the companion app is still alive in the
+             background, pulling the user into the companion app instead of back to the app they
+             were typing in. -->
+        <activity android:name="helium314.keyboard.sellby.ui.QrisPhotoPickerActivity" android:exported="false"
+            android:theme="@style/TransparentActivityTheme" android:excludeFromRecents="true" android:taskAffinity=""/>
+
+        <activity android:name="helium314.keyboard.sellby.ui.ContactPickerActivity" android:exported="false"
+            android:theme="@style/TransparentActivityTheme" android:excludeFromRecents="true" android:noHistory="true"/>
 
         <!-- Broadcast receivers -->
         <receiver android:name="SystemBroadcastReceiver"

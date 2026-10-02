@@ -78,6 +78,7 @@ public class Key implements Comparable<Key> {
     public static final int LABEL_FLAGS_FROM_CUSTOM_ACTION_LABEL = 0x40000;
     public static final int LABEL_FLAGS_FOLLOW_FUNCTIONAL_TEXT_COLOR = 0x80000;
     public static final int LABEL_FLAGS_KEEP_BACKGROUND_ASPECT_RATIO = 0x100000;
+    public static final int LABEL_FLAGS_FONT_BOLD = 0x200000;
     public static final int LABEL_FLAGS_DISABLE_HINT_LABEL = 0x40000000;
 
     /** Icon to display instead of a label. Icon takes precedence over a label */
@@ -138,6 +139,7 @@ public class Key implements Comparable<Key> {
     public static final int BACKGROUND_TYPE_FUNCTIONAL = 2;
     public static final int BACKGROUND_TYPE_ACTION = 3;
     public static final int BACKGROUND_TYPE_SPACEBAR = 4;
+    public static final int BACKGROUND_TYPE_BADGE = 5;
 
     private final int mActionFlags;
     private static final int ACTION_FLAGS_IS_REPEATABLE = 0x01;
@@ -470,6 +472,7 @@ public class Key implements Comparable<Key> {
             case BACKGROUND_TYPE_FUNCTIONAL -> "functional";
             case BACKGROUND_TYPE_ACTION -> "action";
             case BACKGROUND_TYPE_SPACEBAR -> "spacebar";
+            case BACKGROUND_TYPE_BADGE -> "badge";
             default -> null;
         };
     }
@@ -556,6 +559,7 @@ public class Key implements Comparable<Key> {
 
     @NonNull
     public final Typeface selectTypeface(final KeyDrawParams params) {
+        if ((mLabelFlags & LABEL_FLAGS_FONT_BOLD) != 0) return Typeface.DEFAULT_BOLD;
         return switch (mLabelFlags & LABEL_FLAGS_FONT_MASK) {
             case LABEL_FLAGS_FONT_NORMAL -> Typeface.DEFAULT;
             case LABEL_FLAGS_FONT_MONO_SPACE -> Typeface.MONOSPACE;
@@ -759,6 +763,7 @@ public class Key implements Comparable<Key> {
      * @see Key#BACKGROUND_TYPE_FUNCTIONAL
      * @see Key#BACKGROUND_TYPE_ACTION
      * @see Key#BACKGROUND_TYPE_SPACEBAR
+     * @see Key#BACKGROUND_TYPE_BADGE
      */
     public int getBackgroundType() {
         return mBackgroundType;
@@ -916,6 +921,8 @@ public class Key implements Comparable<Key> {
             new KeyBackgroundState(android.R.attr.state_active),
             // 4: BACKGROUND_TYPE_SPACEBAR
             new KeyBackgroundState(),
+            // 5: BACKGROUND_TYPE_BADGE
+            new KeyBackgroundState(),
         };
     }
 
@@ -928,7 +935,8 @@ public class Key implements Comparable<Key> {
     public final Drawable selectBackgroundDrawable(@NonNull final Drawable keyBackground,
             @NonNull final Drawable functionalKeyBackground,
             @NonNull final Drawable spacebarBackground,
-            @NonNull final Drawable actionKeyBackground) {
+            @NonNull final Drawable actionKeyBackground,
+            @NonNull final Drawable badgeKeyBackground) {
         final Drawable background;
         if (hasActionKeyBackground()) {
             background = actionKeyBackground;
@@ -936,6 +944,8 @@ public class Key implements Comparable<Key> {
             background = functionalKeyBackground;
         } else if (mBackgroundType == BACKGROUND_TYPE_SPACEBAR) {
             background = spacebarBackground;
+        } else if (mBackgroundType == BACKGROUND_TYPE_BADGE) {
+            background = badgeKeyBackground;
         } else {
             background = keyBackground;
         }
@@ -1067,7 +1077,20 @@ public class Key implements Comparable<Key> {
                 final int backgroundType,
                 @Nullable final PopupSet<?> popupSet
         ) {
-            this(keySpec, KeySpecParser.getCode(keySpec), params, relativeWidth, labelFlags, backgroundType, popupSet);
+            this(keySpec, KeySpecParser.getCode(keySpec), params, relativeWidth, labelFlags, backgroundType, popupSet, null);
+        }
+
+        /** Sellby: same as above, with an explicit badge icon name (see the other badgeIconName constructor). */
+        public KeyParams(
+                @NonNull final String keySpec,
+                @NonNull final KeyboardParams params,
+                final float relativeWidth,
+                final int labelFlags,
+                final int backgroundType,
+                @Nullable final PopupSet<?> popupSet,
+                @Nullable final String badgeIconName
+        ) {
+            this(keySpec, KeySpecParser.getCode(keySpec), params, relativeWidth, labelFlags, backgroundType, popupSet, badgeIconName);
         }
 
         /**
@@ -1084,12 +1107,30 @@ public class Key implements Comparable<Key> {
                 final int backgroundType,
                 @Nullable final PopupSet<?> popupSet
         ) {
+            this(keySpec, code, params, width, labelFlags, backgroundType, popupSet, null);
+        }
+
+        /**
+         * Sellby: same as above, but allows an explicit badge icon name alongside a text label
+         * (e.g. the smiley/numpad/calculator icon shown above the comma/period character) —
+         * KeySpecParser's normal icon-vs-label parsing is mutually exclusive, so this bypasses it.
+         */
+        public KeyParams(
+                @NonNull final String keySpec,
+                final int code,
+                @NonNull final KeyboardParams params,
+                final float width,
+                final int labelFlags,
+                final int backgroundType,
+                @Nullable final PopupSet<?> popupSet,
+                @Nullable final String badgeIconName
+        ) {
             mKeyboardParams = params;
             mBackgroundType = backgroundType;
             mLabelFlags = labelFlags;
             mWidth = width;
             mHeight = params.mDefaultRowHeight;
-            mIconName = KeySpecParser.getIconName(keySpec) ;
+            mIconName = badgeIconName != null ? badgeIconName : KeySpecParser.getIconName(keySpec);
 
             boolean needsToUpcase = needsToUpcase(mLabelFlags, params.mId.getElement());
             Locale localeForUpcasing = params.mId.getLocale();
@@ -1134,6 +1175,13 @@ public class Key implements Comparable<Key> {
                 }
             } else {
                 mPopupKeys = null;
+                // Sellby: badge keys (comma/period smile/numpad/calculator) and the action key
+                // (Enter) need long-press enabled even without a real popup-keys panel, so
+                // PointerTracker's hold-gesture dispatch (Emoji/Numpad/Calculator/Clipboard) still
+                // gets triggered.
+                if (badgeIconName != null || backgroundType == BACKGROUND_TYPE_ACTION) {
+                    actionFlags |= ACTION_FLAGS_ENABLE_LONG_PRESS;
+                }
             }
 
             // hint label

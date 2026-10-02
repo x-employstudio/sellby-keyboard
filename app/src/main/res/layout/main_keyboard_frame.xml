@@ -24,17 +24,47 @@
         android:layout_height="wrap_content"
         android:layoutDirection="ltr" >
 
-        <helium314.keyboard.keyboard.MainKeyboardView
-            android:id="@+id/keyboard_view"
-            android:layoutDirection="ltr"
+        <LinearLayout
+            android:id="@+id/sellby_toolbar_stack"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content" />
+            android:layout_height="wrap_content"
+            android:orientation="vertical" >
+
+            <FrameLayout
+                android:id="@+id/sellby_panel_region"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:visibility="gone" />
+
+            <helium314.keyboard.keyboard.toolbar.SellbyToolbarView
+                android:id="@+id/sellby_toolbar_row"
+                android:layout_width="match_parent"
+                android:layout_height="48dp" />
+
+            <!-- Emoji/Clipboard reparented here (instead of overlapping keyboard_view_wrapper
+                 siblings) so sellby_toolbar_row stays visible above them as a normal LinearLayout
+                 stack entry - no margin/gravity tricks needed, see the plan file's "Penyesuaian
+                 Keyboard Utama" section for why that was tried first and abandoned
+                 (emoji_palettes_view's layout_gravity="bottom" ignores marginTop entirely).
+                 Only one of these three is VISIBLE at a time, same mutually-exclusive toggling
+                 KeyboardSwitcher already did when they were top-level siblings. calculator_view is
+                 deliberately NOT moved here - Calculator keeps hiding the whole toolbar stack. -->
+            <helium314.keyboard.keyboard.MainKeyboardView
+                android:id="@+id/keyboard_view"
+                android:layoutDirection="ltr"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content" />
+
+            <include
+                android:id="@+id/emoji_palettes_view"
+                layout="@layout/emoji_palettes_view" />
+            <include
+                android:id="@+id/clipboard_history_view"
+                layout="@layout/clipboard_history_view" />
+        </LinearLayout>
         <include
-            android:id="@+id/emoji_palettes_view"
-            layout="@layout/emoji_palettes_view" />
-        <include
-            android:id="@+id/clipboard_history_view"
-            layout="@layout/clipboard_history_view" />
+            android:id="@+id/calculator_view"
+            layout="@layout/calculator_view" />
 
         <ImageButton
             android:id="@+id/btn_stop_one_handed_mode"

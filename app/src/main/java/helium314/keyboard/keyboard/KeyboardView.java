@@ -61,6 +61,7 @@ public class KeyboardView extends View {
     private final Drawable mFunctionalKeyBackground;
     private final Drawable mActionKeyBackground;
     private final Drawable mSpacebarBackground;
+    private final Drawable mBadgeKeyBackground;
     private final float mSpacebarIconWidthRatio;
     private final Rect mKeyBackgroundPadding = new Rect();
     private static final float KET_TEXT_SHADOW_RADIUS_DISABLED = -1.0f;
@@ -109,19 +110,27 @@ public class KeyboardView extends View {
 
         final TypedArray keyboardViewAttr = context.obtainStyledAttributes(attrs,
                 R.styleable.KeyboardView, defStyle, R.style.KeyboardView);
+        // Sellby: the "border" key style (see Colors#sellbyBorderedDrawable) is requested by the
+        // user specifically for the main typing keyboard - excluded for EmojiPageKeyboardView
+        // (each emoji page is itself a Key/KeyboardView-rendered grid, so it goes through this
+        // exact same init code) so a small, dense emoji grid doesn't get a stroke around every
+        // cell. Passing true here just skips the new bordered-drawable path and falls through to
+        // the pre-existing tint-based resolution, unchanged from before this feature existed.
+        final boolean excludeSellbyBorder = this instanceof EmojiPageKeyboardView;
         if (this instanceof MoreSuggestionsView)
-            mKeyBackground = mColors.selectAndColorDrawable(keyboardViewAttr, ColorType.MORE_SUGGESTIONS_WORD_BACKGROUND);
+            mKeyBackground = mColors.selectAndColorDrawable(keyboardViewAttr, ColorType.MORE_SUGGESTIONS_WORD_BACKGROUND, false);
         else if (this instanceof PopupKeysKeyboardView)
-            mKeyBackground = mColors.selectAndColorDrawable(keyboardViewAttr, ColorType.POPUP_KEYS_BACKGROUND);
+            mKeyBackground = mColors.selectAndColorDrawable(keyboardViewAttr, ColorType.POPUP_KEYS_BACKGROUND, false);
         else
-            mKeyBackground = mColors.selectAndColorDrawable(keyboardViewAttr, ColorType.KEY_BACKGROUND);
+            mKeyBackground = mColors.selectAndColorDrawable(keyboardViewAttr, ColorType.KEY_BACKGROUND, excludeSellbyBorder);
         mKeyBackground.getPadding(mKeyBackgroundPadding);
-        mFunctionalKeyBackground = mColors.selectAndColorDrawable(keyboardViewAttr, ColorType.FUNCTIONAL_KEY_BACKGROUND);
-        mSpacebarBackground = mColors.selectAndColorDrawable(keyboardViewAttr, ColorType.SPACE_BAR_BACKGROUND);
+        mFunctionalKeyBackground = mColors.selectAndColorDrawable(keyboardViewAttr, ColorType.FUNCTIONAL_KEY_BACKGROUND, excludeSellbyBorder);
+        mSpacebarBackground = mColors.selectAndColorDrawable(keyboardViewAttr, ColorType.SPACE_BAR_BACKGROUND, excludeSellbyBorder);
+        mBadgeKeyBackground = mColors.selectAndColorDrawable(keyboardViewAttr, ColorType.BADGE_KEY_BACKGROUND, excludeSellbyBorder);
         if (this instanceof PopupKeysKeyboardView)
-            mActionKeyBackground = mColors.selectAndColorDrawable(keyboardViewAttr, ColorType.ACTION_KEY_POPUP_KEYS_BACKGROUND);
+            mActionKeyBackground = mColors.selectAndColorDrawable(keyboardViewAttr, ColorType.ACTION_KEY_POPUP_KEYS_BACKGROUND, false);
         else
-            mActionKeyBackground = mColors.selectAndColorDrawable(keyboardViewAttr, ColorType.ACTION_KEY_BACKGROUND);
+            mActionKeyBackground = mColors.selectAndColorDrawable(keyboardViewAttr, ColorType.ACTION_KEY_BACKGROUND, excludeSellbyBorder);
 
         mSpacebarIconWidthRatio = keyboardViewAttr.getFloat(
                 R.styleable.KeyboardView_spacebarIconWidthRatio, 1.0f);
@@ -341,7 +350,7 @@ public class KeyboardView extends View {
 
         if (!key.isSpacer()) {
             final Drawable background = key.selectBackgroundDrawable(
-                    mKeyBackground, mFunctionalKeyBackground, mSpacebarBackground, mActionKeyBackground);
+                    mKeyBackground, mFunctionalKeyBackground, mSpacebarBackground, mActionKeyBackground, mBadgeKeyBackground);
             onDrawKeyBackground(key, canvas, background);
         }
         onDrawKeyTopVisuals(key, canvas, paint, params);
@@ -397,7 +406,11 @@ public class KeyboardView extends View {
             final float labelCharWidth = TypefaceUtils.getReferenceCharWidth(paint);
 
             // Vertical label text alignment.
-            labelBaseline = centerY + labelCharHeight / 2.0f;
+            // Sellby: badge keys (comma/period) show a small icon above the label, so push the
+            // label baseline down toward the bottom instead of centering it.
+            labelBaseline = (icon != null)
+                    ? centerY + labelCharHeight * 1.05f
+                    : centerY + labelCharHeight / 2.0f;
 
             // Horizontal label text alignment
             if (key.isAlignLabelOffCenter() && mShowsHints) {
@@ -414,7 +427,7 @@ public class KeyboardView extends View {
                 final int width;
                 if (key.needsToKeepBackgroundAspectRatio(mDefaultKeyLabelFlags)) {
                     // make sure the text stays inside bounds of background drawable
-                    Drawable bg = key.selectBackgroundDrawable(mKeyBackground, mFunctionalKeyBackground, mSpacebarBackground, mActionKeyBackground);
+                    Drawable bg = key.selectBackgroundDrawable(mKeyBackground, mFunctionalKeyBackground, mSpacebarBackground, mActionKeyBackground, mBadgeKeyBackground);
                     width = Math.min(bg.getBounds().bottom, bg.getBounds().right);
                 } else width = keyWidth;
                 final float ratio = Math.min(1.0f, (width * MAX_LABEL_RATIO) / TypefaceUtils.getStringWidth(label, paint));
@@ -453,6 +466,16 @@ public class KeyboardView extends View {
             // Turn off drop shadow and reset x-scale.
             paint.clearShadowLayer();
             paint.setTextScaleX(1.0f);
+
+            // Sellby: badge keys (comma/period) also show a small icon above the label
+            // (this label+icon combination is unique to badge keys; no other key has both set).
+            if (icon != null) {
+                final int badgeIconSize = (int) (labelCharHeight * 0.85f);
+                final int badgeIconX = (int) (labelX - badgeIconSize / 2.0f);
+                final int badgeIconY = (int) (centerY - labelCharHeight * 1.05f);
+                setKeyIconColor(key, icon, keyboard);
+                drawIcon(canvas, icon, badgeIconX, badgeIconY, badgeIconSize, badgeIconSize);
+            }
         }
 
         // Draw hint label.
@@ -530,7 +553,8 @@ public class KeyboardView extends View {
             hintIcon.setColorFilter(key.selectHintTextColor(params), PorterDuff.Mode.MULTIPLY);
             drawIcon(canvas, hintIcon, (int)hintX, (int)(hintBaseline + adjustmentY), iconSize, iconSize);
         } else if (key.getPopupKeys() != null && ! key.hasNoPanelAutoPopupKey()
-                        && (key.hasActionKeyBackground() || key.getBackgroundType() == Key.BACKGROUND_TYPE_FUNCTIONAL)) {
+                        && (key.hasActionKeyBackground() || key.getBackgroundType() == Key.BACKGROUND_TYPE_FUNCTIONAL
+                                || key.getBackgroundType() == Key.BACKGROUND_TYPE_BADGE)) {
             drawKeyPopupHint(key, canvas, paint, params);
         }
 

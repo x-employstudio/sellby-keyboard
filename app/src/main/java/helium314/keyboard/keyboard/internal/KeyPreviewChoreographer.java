@@ -7,6 +7,7 @@
 package helium314.keyboard.keyboard.internal;
 
 import android.content.Context;
+import android.graphics.drawable.Drawable;
 import android.view.View;
 import android.view.ViewGroup;
 
@@ -85,8 +86,18 @@ public final class KeyPreviewChoreographer {
     private void placeKeyPreview(Key key, KeyPreviewView keyPreviewView, KeyboardIconsSet iconsSet,
             KeyDrawParams drawParams, int fullKeyboardViewWidth, int[] originCoords) {
         keyPreviewView.setPreviewVisual(key, iconsSet, drawParams);
-        keyPreviewView.measure(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         mParams.setGeometry(keyPreviewView);
+        // Sellby: force a fixed square measurement (matching the background drawable's own intrinsic
+        // size) so the preview bubble is always a perfect circle, regardless of glyph width.
+        final Drawable previewBackground = keyPreviewView.getBackground();
+        if (previewBackground != null && previewBackground.getIntrinsicWidth() > 0 && previewBackground.getIntrinsicHeight() > 0) {
+            final int size = Math.max(previewBackground.getIntrinsicWidth(), previewBackground.getIntrinsicHeight());
+            keyPreviewView.measure(
+                    View.MeasureSpec.makeMeasureSpec(size, View.MeasureSpec.EXACTLY),
+                    View.MeasureSpec.makeMeasureSpec(size, View.MeasureSpec.EXACTLY));
+        } else {
+            keyPreviewView.measure(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        }
         int previewWidth = keyPreviewView.getMeasuredWidth();
         int previewHeight = keyPreviewView.getMeasuredHeight();
         int keyDrawWidth = key.getDrawWidth();
@@ -112,7 +123,7 @@ public final class KeyPreviewChoreographer {
 
         // The key preview is placed vertically above the top edge of the parent key with an
         // arbitrary offset.
-        int previewY = key.getY() - previewHeight + key.getHeight() - mParams.mPreviewOffset
+        int previewY = key.getY() - previewHeight - mParams.mPreviewOffset
                 + CoordinateUtils.y(originCoords);
 
         ViewLayoutUtils.placeViewAt(keyPreviewView, previewX, previewY, previewWidth, previewHeight);

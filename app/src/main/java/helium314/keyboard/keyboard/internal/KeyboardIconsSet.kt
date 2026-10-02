@@ -80,6 +80,19 @@ class KeyboardIconsSet private constructor() {
         const val NAME_RESIZE_ONEHANDED_KEY = "resize_onehanded_key"
         const val NAME_TOOLBAR_KEY = "toolbar_key"
         const val NAME_BIN = "bin"
+        // Sellby: these keys render as ONE combined icon (the character shape + its long-press
+        // shortcut glyph baked into a single asset) instead of a text label with a small badge icon
+        // overlaid above it - the previous 2-layer approach could visually collide on narrow/small
+        // keys (reported bug). 5 distinct combos, one per actual on-screen glyph+badge pairing:
+        // comma+smile (Alphabet, opens Emoji), comma+numpad (Symbols, opens Numpad), "<"+numpad
+        // (Symbols-shifted comma slot, opens Numpad), period+calculator (Alphabet/Symbols, opens
+        // Calculator), ">"+calculator (Symbols-shifted period slot, opens Calculator). Replaces the
+        // old NAME_BADGE_SMILE/NAME_BADGE_NUMPAD/NAME_BADGE_CALCULATOR constants entirely.
+        const val NAME_COMBO_COMMA_SMILE = "combo_comma_smile"
+        const val NAME_COMBO_COMMA_NUMPAD = "combo_comma_numpad"
+        const val NAME_COMBO_LESS_THAN_NUMPAD = "combo_lt_numpad"
+        const val NAME_COMBO_PERIOD_CALCULATOR = "combo_period_calculator"
+        const val NAME_COMBO_GREATER_THAN_CALCULATOR = "combo_gt_calculator"
 
         // names used in the past, and we can't just delete them because they might still be in use in some layouts
         // (also some of them are in use for internal layouts, but there we could just remove them...)
@@ -185,6 +198,11 @@ class KeyboardIconsSet private constructor() {
             NAME_RESIZE_ONEHANDED_KEY to        R.drawable.ic_arrow_horizontal,
             NAME_TOOLBAR_KEY to                 R.drawable.ic_arrow_right,
             NAME_BIN to                         R.drawable.ic_bin,
+            NAME_COMBO_COMMA_SMILE to           R.drawable.sym_combo_comma_smile_lxx,
+            NAME_COMBO_COMMA_NUMPAD to          R.drawable.sym_combo_comma_numpad_lxx,
+            NAME_COMBO_LESS_THAN_NUMPAD to      R.drawable.sym_combo_lt_numpad_lxx,
+            NAME_COMBO_PERIOD_CALCULATOR to     R.drawable.sym_combo_period_calculator_lxx,
+            NAME_COMBO_GREATER_THAN_CALCULATOR to R.drawable.sym_combo_gt_calculator_lxx,
         ).apply {
             ToolbarKey.entries.forEach {
                 put(it.name.lowercase(Locale.US), when (it) {

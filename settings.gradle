@@ -1,4 +1,1 @@
 include ':app'
-// Dinonaktifkan sementara: tool ini pakai `JavaExec.main` yang sudah dihapus di Gradle 9.x,
-// dan tidak dibutuhkan untuk build/run keyboard. Lihat tools/make-emoji-keys/build.gradle.
-//include ':tools:make-emoji-keys'
