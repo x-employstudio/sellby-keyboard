@@ -4,7 +4,7 @@ Draf untuk disalin ke Play Console (Pertumbuhan > Kehadiran di toko > Listingan 
 
 ## Indonesia (bahasa default)
 
-**Judul (30):** `Sellby Keyboard`
+**Judul (30):** `Sellby - Keyboard Untuk Jualan` (30 karakter; pilihan user saat membuat app)
 
 **Deskripsi singkat (80):** `Keyboard bisnis: bikin invoice, cek ongkir & status pesanan dari chat` (69 karakter)
 
@@ -44,7 +44,7 @@ Nama dan logo bank, e-wallet, kurir, serta aplikasi chat milik pemiliknya masing
 
 ## English (translation)
 
-**Title (30):** `Sellby Keyboard`
+**Title (30):** `Sellby - Business Keyboard` (26 characters)
 
 **Short description (80):** `Business keyboard: invoices, shipping & order status inside your chats` (70 characters)
 

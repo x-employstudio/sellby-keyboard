@@ -31,7 +31,7 @@ URL: `https://sellby-keyboard.web.app/privacy.html` (sudah online sejak 5 Okt 20
 | Iklan | Tidak ada iklan |
 | Akses aplikasi | Semua fungsi tersedia tanpa login atau akun |
 | Rating konten (IARC) | Isi kuesioner jujur: tanpa kekerasan, seksual, judi, dll. (perkiraan: Semua umur/3+); kategori "utilitas/produktivitas" |
-| Target audiens | **18+** (bukan anak-anak); bukan aplikasi untuk keluarga |
+| Target audiens | **16 tahun ke atas** (pilihan user: 16-17 dan 18+; bukan anak-anak); bukan aplikasi untuk keluarga |
 | Fitur keuangan | Aplikasi tidak memproses pembayaran, tidak menyimpan dana, tidak memberi pinjaman; hanya menyusun teks tagihan. Jawab "tidak" untuk pinjaman pribadi/dompet/perdagangan kripto, dst. |
 | Aplikasi berita/kesehatan/pemerintah/COVID | Tidak |
 | ID iklan (Advertising ID) | Tidak dipakai |
