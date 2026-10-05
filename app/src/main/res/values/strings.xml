@@ -9,11 +9,11 @@
     xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2"
     tools:ignore="MissingTranslation">
     <!-- Name of Android spell checker service. The app name should not be translated. -->
-    <string name="spell_checker_service_name">HeliBoard Spell Checker</string>
+    <string name="spell_checker_service_name">Sellby Spell Checker</string>
     <!-- Title for IME settings screen. The app name should not be translated. -->
     <string name="ime_settings">Sellby Settings</string>
     <!-- Title for the spell checking service settings screen. The app name should not be translated. -->
-    <string name="android_spell_checker_settings">HeliBoard Spell Checker Settings</string>
+    <string name="android_spell_checker_settings">Sellby Spell Checker Settings</string>
     <!-- Option to provide vibrate/haptic feedback on keypress -->
     <string name="vibrate_on_keypress">Vibrate on keypress</string>
     <!-- Option to provide vibrate/haptic feedback on keypress even in do not disturb mode -->
@@ -1053,7 +1053,7 @@ New dictionary:
     <!-- Text requesting the user to gesture a word
      string will probably be removed once data gathering is finished (end of 2026 latest) -->
     <string name="gesture_data_please_type">Please gesture type:</string>
-    <!-- Text requesting the user to switch to HeliBoard, in case a different keyboard app is active
+    <!-- Text requesting the user to switch to Sellby, in case a different keyboard app is active
      string will probably be removed once data gathering is finished (end of 2026 latest) -->
     <string name="gesture_data_please_switch_keyboard">Please switch to %s</string>
     <!-- Button for saving data and go to next word (now only shows up when the word %s is not in suggestions)

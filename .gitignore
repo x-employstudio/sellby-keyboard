@@ -15,3 +15,10 @@ tools/*.txt
 *.patch
 *.diff
 *.sh
+# release signing - the upload key and its passwords must never be committed
+keystore.properties
+*.jks
+*.keystore
+*.pepk
+*.aab
+.firebase/

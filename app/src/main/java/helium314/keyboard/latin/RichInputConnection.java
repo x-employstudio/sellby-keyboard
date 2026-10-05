@@ -707,7 +707,9 @@ public final class RichInputConnection implements PrivateCommandPerformer {
                 // Note that the check may also fail because the text field is not yet updated, so we don't want to check everything!
                 final CharSequence lastChar = mIC.getTextBeforeCursor(1, 0);
                 if (lastChar == null || lastChar.length() == 0 || text.charAt(text.length() - 1) != lastChar.charAt(0)) {
-                    Log.w(TAG, "did set " + text + ", but got " + mIC.getTextBeforeCursor(text.length(), 0) + " as last character");
+                    // Sellby: never log the typed text itself (this used to write both the composing text and the text
+                    // found in the field to the log, which crash reports then included).
+                    Log.w(TAG, "did set composing text of length " + text.length() + ", but the last character in the field does not match");
                     return false;
                 }
             }

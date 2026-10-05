@@ -39,10 +39,11 @@ object ShadowLocaleManagerCompat {
 @Implements(InputMethodManager::class)
 class ShadowInputMethodManager2 : ShadowInputMethodManager() {
     @Implementation
+    // The IME id has to be the app's own package (UncachedInputMethodManagerUtils.isThisImeCurrent compares it with
+    // context.packageName). It used to be hardcoded to HeliBoard's "helium314.keyboard(.debug)", which stopped
+    // matching when the applicationId became com.sellby.keyboard - the likely reason ~55 of the inherited tests failed.
     override fun getInputMethodList() = listOf(
-        if (BuildConfig.BUILD_TYPE == "debug" || BuildConfig.BUILD_TYPE == "debugNoMinify")
-            InputMethodInfo("helium314.keyboard.debug", "LatinIME", "HeliBoard debug", null)
-        else InputMethodInfo("helium314.keyboard", "LatinIME", "HeliBoard", null),
+        InputMethodInfo(BuildConfig.APPLICATION_ID, "LatinIME", "Sellby", null),
     )
     @Implementation
     fun getShortcutInputMethodsAndSubtypes() = emptyMap<InputMethodInfo, List<InputMethodSubtype>>()

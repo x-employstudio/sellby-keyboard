@@ -58,6 +58,16 @@ class SuggestTest {
 
     @BeforeTest fun reset() {
         latinIME.prefs().edit { clear() }
+        // Sellby ships with suggestions, autocorrect and next-word prediction OFF (a
+        // business keyboard without a dictionary). These inherited engine tests describe the stock behaviour of the
+        // typing logic, so they run with those switches on - otherwise ~40 of them fail only because of the defaults.
+        latinIME.prefs().edit {
+            putBoolean(Settings.PREF_SHOW_SUGGESTIONS, true)
+            putBoolean(Settings.PREF_AUTO_CORRECTION, true)
+            putBoolean(Settings.PREF_BIGRAM_PREDICTIONS, true)
+            putBoolean(Settings.PREF_KEY_USE_PERSONALIZED_DICTS, true)
+            putBoolean(Settings.PREF_AUTOCORRECT_CAPITALIZED_SUGGESTION, true)
+        }
         currentTypingLocale = Locale.ENGLISH
         tapTypingSuggestions = suggestionResults(emptyList())
         glideTypingSuggestions = suggestionResults(emptyList())

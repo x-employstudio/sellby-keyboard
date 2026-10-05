@@ -92,8 +92,12 @@ LOCAL_SDK_VERSION := 14
 LOCAL_NDK_STL_VARIANT := c++_static
 LOCAL_LDFLAGS += -ldl
 
-# Avoid issues with reproducible builds, see https://gitlab.com/fdroid/rfp/-/issues/2662
-LOCAL_LDFLAGS += -Wl,--build-id=none
+# Sellby: keep the GNU build id (HeliBoard removed it for F-Droid's reproducible builds). Google Play uses it
+# to match a native crash to the debug symbols uploaded with the AAB, so without it native crashes in
+# Android vitals cannot be symbolicated.
+# Explicit 16 KB page alignment (required for apps on Android 15+ devices with 16 KB pages): NDK r28 does it
+# by default, but then it would silently break if the NDK is ever downgraded.
+LOCAL_LDFLAGS += -Wl,-z,max-page-size=16384
 
 include $(BUILD_SHARED_LIBRARY)
 #################### Clean up the tmp vars

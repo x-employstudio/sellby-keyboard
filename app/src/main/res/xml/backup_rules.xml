@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    SPDX-License-Identifier: GPL-3.0-only
+
+    The Android 11 and older version of data_extraction_rules.xml (read that file for the reasoning):
+    only the business database, the QRIS photos and the preferences are backed up; the clipboard history,
+    learned words, dictionaries and every other file are not.
+-->
+<full-backup-content>
+    <include domain="device_database" path="sellby.db" />
+    <include domain="device_database" path="sellby.db-wal" />
+    <include domain="device_database" path="sellby.db-shm" />
+    <include domain="device_file" path="qris_photos" />
+    <include domain="device_sharedpref" path="." />
+</full-backup-content>

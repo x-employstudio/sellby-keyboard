@@ -9,7 +9,6 @@ import android.graphics.drawable.GradientDrawable
 import android.net.Uri
 import android.util.AttributeSet
 import android.view.Gravity
-import android.view.HapticFeedbackConstants
 import android.view.View
 import android.widget.FrameLayout
 import android.widget.ImageView
@@ -17,7 +16,9 @@ import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
 import androidx.core.content.ContextCompat
+import helium314.keyboard.event.HapticEvent
 import helium314.keyboard.keyboard.KeyboardSwitcher
+import helium314.keyboard.latin.AudioAndHapticFeedbackManager
 import helium314.keyboard.latin.R
 import helium314.keyboard.sellby.data.ExpeditionCatalog
 import helium314.keyboard.sellby.data.ExpeditionCatalogItem
@@ -183,7 +184,7 @@ class OngkirPanelView @JvmOverloads constructor(
             isFocusable = true
             addView(icon, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
             setOnClickListener {
-                it.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                AudioAndHapticFeedbackManager.getInstance().performHapticFeedback(it, HapticEvent.KEY_PRESS)
                 launchExpedition(item)
             }
         }

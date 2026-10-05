@@ -6,6 +6,7 @@
 
 package helium314.keyboard.latin;
 
+import android.content.ContentResolver;
 import android.content.Context;
 import android.media.AudioManager;
 import android.os.Vibrator;
@@ -27,6 +28,7 @@ public final class AudioAndHapticFeedbackManager {
     private AudioManager mAudioManager;
     private Vibrator mVibrator;
 
+    private ContentResolver mContentResolver;
     private SettingsValues mSettingsValues;
     private boolean mSoundOn;
     private boolean mDoNotDisturb;
@@ -49,6 +51,23 @@ public final class AudioAndHapticFeedbackManager {
     private void initInternal(final Context context) {
         mAudioManager = (AudioManager) context.getSystemService(Context.AUDIO_SERVICE);
         mVibrator = (Vibrator) context.getSystemService(Context.VIBRATOR_SERVICE);
+        // Application context: this singleton outlives every LatinIME instance, don't pin a service.
+        mContentResolver = context.getApplicationContext().getContentResolver();
+        mDoNotDisturb = readDoNotDisturb();
+    }
+
+    /** Same "zen_mode" check LatinIME's ringer-mode receiver uses. That receiver only exists while
+     *  the IME service is alive, so a Do Not Disturb change made while another keyboard was active
+     *  was missed and this singleton (it survives service re-creation) kept a stale value -
+     *  re-read it whenever the service starts and whenever settings reload instead of trusting
+     *  only the broadcast. */
+    private boolean readDoNotDisturb() {
+        if (mContentResolver == null) return false;
+        try {
+            return android.provider.Settings.Global.getInt(mContentResolver, "zen_mode") != 0;
+        } catch (android.provider.Settings.SettingNotFoundException e) {
+            return false;
+        }
     }
 
     public void performHapticAndAudioFeedback(
@@ -99,6 +118,9 @@ public final class AudioAndHapticFeedbackManager {
     }
 
     public void performHapticFeedback(final View viewToPerformHapticFeedbackOn, final HapticEvent hapticEvent) {
+        if (mSettingsValues == null) {
+            return;
+        }
         if (!mSettingsValues.mVibrateOn || (mDoNotDisturb && !mSettingsValues.mVibrateInDndMode)) {
             return;
         }
@@ -110,33 +132,28 @@ public final class AudioAndHapticFeedbackManager {
             vibrate(mSettingsValues.mKeypressVibrationDuration);
             return;
         }
-        // BUG FIX: View.performHapticFeedback(KEYBOARD_TAP, ...) silently produced no vibration at
-        // all on report (regular typing never vibrated - both KEY_PRESS and KEY_REPEAT use this
-        // same feedbackConstant - while slide-gesture feedback, which uses CLOCK_TICK, and
-        // long-press, which uses LONG_PRESS, worked fine). FLAG_IGNORE_GLOBAL_SETTING is documented
-        // to bypass the user's global haptic-feedback toggle, but KEYBOARD_TAP/VIRTUAL_KEY specifically
-        // have a long history of being gated further by OEM input stacks even with that flag set.
-        // Bypassing the platform API for this one constant and vibrating directly (the same
-        // mVibrator.vibrate() already used just above for a custom duration, just with a short
-        // default here since the user hasn't set one) sidesteps that entirely - every other
-        // feedbackConstant keeps using the standard path below, unchanged, since it's already
-        // confirmed working.
-        if (hapticEvent.feedbackConstant == HapticFeedbackConstants.KEYBOARD_TAP) {
-            vibrate(DEFAULT_KEYBOARD_TAP_VIBRATION_DURATION_MS);
-            return;
-        }
-        // Go ahead with the system default
-        if (viewToPerformHapticFeedbackOn != null) {
-            viewToPerformHapticFeedbackOn.performHapticFeedback(
-                    hapticEvent.feedbackConstant,
-                    HapticFeedbackConstants.FLAG_IGNORE_GLOBAL_SETTING);
+        // The platform haptic effect is the primary path: it's the OEM-tuned waveform for this
+        // hardware. An earlier version bypassed it for typing with a hard-coded 20 ms
+        // Vibrator.vibrate() pulse; that is far too short to feel on many phones' motors (it only
+        // seemed to work during hold-delete, where the pulses stack up), so typing was silent there
+        // while the gestures - which kept the platform path - still vibrated. HapticEvent now picks
+        // constants that are confirmed to vibrate (CLOCK_TICK for typing); the direct pulse below
+        // is only a fallback for when the platform call can't be performed (no usable view, view
+        // detached, haptics disabled on the view) and uses a duration long enough to be felt.
+        final boolean performed = viewToPerformHapticFeedbackOn != null
+                && viewToPerformHapticFeedbackOn.performHapticFeedback(
+                        hapticEvent.feedbackConstant,
+                        HapticFeedbackConstants.FLAG_IGNORE_GLOBAL_SETTING);
+        if (!performed) {
+            vibrate(FALLBACK_VIBRATION_DURATION_MS);
         }
     }
 
-    private static final long DEFAULT_KEYBOARD_TAP_VIBRATION_DURATION_MS = 20L;
+    private static final long FALLBACK_VIBRATION_DURATION_MS = 30L;
 
     public void onSettingsChanged(final SettingsValues settingsValues) {
         mSettingsValues = settingsValues;
+        mDoNotDisturb = readDoNotDisturb();
         mSoundOn = reevaluateIfSoundIsOn();
     }
 

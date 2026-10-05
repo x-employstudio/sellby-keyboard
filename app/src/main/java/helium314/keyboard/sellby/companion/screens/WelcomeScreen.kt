@@ -7,9 +7,12 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
@@ -35,6 +38,7 @@ import kotlin.math.max
 @Composable
 fun WelcomeScreen(onStart: () -> Unit) {
     val screenHeight = LocalConfiguration.current.screenHeightDp.dp
+    val navBarHeight = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
     Box(Modifier.fillMaxSize().background(SellbyColors.TealDark)) {
         Column(Modifier.fillMaxSize().padding(horizontal = 28.dp)) {
             Column(
@@ -76,8 +80,10 @@ fun WelcomeScreen(onStart: () -> Unit) {
                     lineHeight = 18.sp,
                 )
             }
+            // The screen is drawn edge-to-edge, so the button used to sit right on top of the system
+            // navigation bar / gesture area. Add that inset on top of the old 28dp so it clears it.
             Box(
-                Modifier.fillMaxWidth().padding(bottom = 28.dp, top = 12.dp),
+                Modifier.fillMaxWidth().padding(bottom = navBarHeight + 28.dp, top = 12.dp),
                 contentAlignment = Alignment.Center,
             ) {
                 Button(

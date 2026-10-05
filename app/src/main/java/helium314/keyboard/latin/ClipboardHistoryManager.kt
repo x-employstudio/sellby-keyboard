@@ -7,6 +7,7 @@ import android.content.ClipDescription
 import android.content.ClipboardManager
 import android.content.Context
 import android.net.Uri
+import android.os.Build
 import android.provider.OpenableColumns
 import android.text.InputType
 import android.text.TextUtils
@@ -76,6 +77,10 @@ class ClipboardHistoryManager(
         if (clipData.itemCount == 0) return
         val clipItem = clipData.getItemAt(0) ?: return
         val description = clipData.description ?: return
+        // Sellby: a clip the source app marked as sensitive (password managers, banking apps: EXTRA_IS_SENSITIVE
+        // since Android 13, the same extra key was used by apps before that) never goes into the history.
+        // (ClipDescription.getExtras() exists from API 24; on API 23 no app can have marked a clip.)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N && description.extras?.getBoolean(EXTRA_IS_SENSITIVE, false) == true) return
         val timeStamp = ClipboardManagerCompat.getClipTimestamp(clipData)
 
         if (description.hasMimeType("text/*")) {
@@ -268,6 +273,9 @@ class ClipboardHistoryManager(
         private var dontShowCurrentSuggestion: Boolean = false
 
         const val RECENT_TIME_MILLIS = 3 * 60 * 1000L // 3 minutes (for clipboard suggestions)
+
+        /** ClipDescription.EXTRA_IS_SENSITIVE (API 33), spelled out because minSdk is 23. */
+        private const val EXTRA_IS_SENSITIVE = "android.content.extra.IS_SENSITIVE"
 
         private fun maySaveFromUri(uri: Uri?, context: Context): Boolean {
             val maxSize = context.prefs().getInt(Settings.PREF_CLIPBOARD_FILES_SIZE_LIMIT, Defaults.PREF_CLIPBOARD_FILES_SIZE_LIMIT)

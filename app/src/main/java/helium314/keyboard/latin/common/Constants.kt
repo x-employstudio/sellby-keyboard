@@ -7,12 +7,15 @@ object Links {
     const val DICTIONARY_NORMAL_SUFFIX = "dictionaries/"
     const val DICTIONARY_EXPERIMENTAL_SUFFIX = "dictionaries_experimental/"
     const val DICTIONARY_EMOJI_CLDR_SUFFIX = "emoji_cldr_signal_dictionaries/"
-    const val GITHUB = "https://github.com/HeliBorg/HeliBoard"
+    /** Sellby's own public repository (the source offered under the GPL). */
+    const val GITHUB = "https://github.com/x-employstudio/sellby-keyboard"
     const val LICENSE = "$GITHUB/blob/main/LICENSE"
-    const val WIKI_URL = "$GITHUB/wiki"
+    /** The links below describe HeliBoard's own features (wiki, community layouts/colors, gesture data), so they stay HeliBoard's. */
+    private const val HELIBOARD = "https://github.com/HeliBorg/HeliBoard"
+    const val WIKI_URL = "$HELIBOARD/wiki"
     const val LAYOUT_WIKI_URL = "$WIKI_URL/2.-Layouts"
-    const val CUSTOM_LAYOUTS = "$GITHUB/discussions/categories/custom-layout"
-    const val CUSTOM_COLORS = "$GITHUB/discussions/categories/custom-colors"
+    const val CUSTOM_LAYOUTS = "$HELIBOARD/discussions/categories/custom-layout"
+    const val CUSTOM_COLORS = "$HELIBOARD/discussions/categories/custom-colors"
     const val GESTURE_DATA_VIDEO_PEERTUBE = "https://makertube.net/w/cQECfDkuLGR9eUQquUEo4K"
     const val GESTURE_DATA_VIDEO_YOUTUBE = "https://youtu.be/CyjumVTWtJA"
     const val GESTURE_DATA_WIKI = "$WIKI_URL/Tutorial:-How-to-Contribute-Gesture-Data"
@@ -20,7 +23,7 @@ object Links {
     const val BACKGROUND_GESTURE_DATA_VIDEO_YOUTUBE = "https://youtu.be/VJLzVEhY2PY"
     const val BACKGROUND_GESTURE_DATA_WIKI = "$WIKI_URL/Background-Gesture-Data-Gathering"
     const val SWIPE_O_SCOPE = "https://codeberg.org/eclexic/swipe-o-scope"
-    const val COMMUNITY_LINKS = "$GITHUB#to-community"
+    const val COMMUNITY_LINKS = "$HELIBOARD#to-community"
 }
 
 val combiningRange = 0x300..0x35b

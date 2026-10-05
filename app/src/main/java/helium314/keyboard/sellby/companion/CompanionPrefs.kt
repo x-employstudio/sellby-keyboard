@@ -12,8 +12,20 @@ const val PREF_STORE_PHONE = "store_phone"
 // New flag, companion-app-only: whether Loading should skip straight to Dashboard.
 const val PREF_ONBOARDING_COMPLETED = "sellby_onboarding_completed"
 
-// Round 2 (Billing) placeholder: apakah user sudah beli akses premium. Selalu false sampai
-// integrasi Google Play Billing sungguhan (Round 2) benar-benar mengisi nilai ini. SENGAJA TIDAK
-// pernah dihapus oleh performDeleteAll()'s reset (SettingsPanelView.kt) - pembelian harus tetap
-// tersimpan walau data lain direset - dan inilah yang dicek CompanionNavHost buat skip Purchase.
+// Whether the user bought "sellby_premium". The keyboard (toolbar feature lock) and the companion screens only
+// READ it, through TrialPolicy. Exactly one class writes it: billing/EntitlementStore, from what Google Play says
+// (BillingRepository). It is a local cache of the purchase, re-checked with Play on every companion app start.
+// DELIBERATELY NOT removed by performDeleteAll()'s reset (SettingsPanelView.kt): a purchase must survive "Hapus
+// Semua Data". The two siblings below belong to the same cache and follow the same rule.
 const val PREF_PREMIUM_PURCHASED = "sellby_premium_purchased"
+/** A payment for premium is waiting to be completed (pending purchase: minimarket, bank transfer...). */
+const val PREF_PREMIUM_PENDING = "sellby_premium_pending"
+/** Wall-clock time of the first Play check that did NOT list the purchase while premium was on; 0 = none. */
+const val PREF_PREMIUM_NOT_OWNED_SINCE = "sellby_premium_not_owned_since"
+
+// Free trial (see TrialPolicy). Like PREF_PREMIUM_PURCHASED these are deliberately NOT removed by
+// performDeleteAll() - "Hapus Semua Data" must not be a way to start a fresh trial.
+const val PREF_TRIAL_START_MILLIS = "sellby_trial_start_millis"
+/** Newest wall-clock reading we have ever seen; the trial clock never runs backwards past it. */
+const val PREF_TRIAL_LAST_SEEN_MILLIS = "sellby_trial_last_seen_millis"
+const val PREF_REVIEW_PROMPTED = "sellby_review_prompted"

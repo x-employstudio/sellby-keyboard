@@ -336,8 +336,12 @@ public final class Settings implements SharedPreferences.OnSharedPreferenceChang
     }
 
     public static boolean readVibrationEnabled(final SharedPreferences prefs) {
-        return prefs.getBoolean(PREF_VIBRATE_ON, Defaults.PREF_VIBRATE_ON)
-                && AudioAndHapticFeedbackManager.getInstance().hasVibrator();
+        // Sellby: no hasVibrator() check baked in here anymore. SettingsValues is immutable and
+        // built whenever settings (re)load - if that happened before AudioAndHapticFeedbackManager
+        // had a Vibrator (service start order, or settings loaded by something other than the IME),
+        // "vibration unavailable" got frozen into it and vibration stayed dead until the next
+        // unrelated reload. A device without a motor just no-ops the haptic call anyway.
+        return prefs.getBoolean(PREF_VIBRATE_ON, Defaults.PREF_VIBRATE_ON);
     }
 
     public void toggleAutoCorrect() {

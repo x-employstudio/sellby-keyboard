@@ -81,6 +81,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
@@ -93,12 +94,16 @@ import helium314.keyboard.latin.utils.UncachedInputMethodManagerUtils
 import helium314.keyboard.latin.utils.prefs
 import helium314.keyboard.sellby.companion.PREF_ONBOARDING_COMPLETED
 import helium314.keyboard.sellby.companion.PREF_STORE_NAME
+import helium314.keyboard.sellby.companion.SellbyLinks
+import helium314.keyboard.sellby.companion.review.ReviewPrompter
 import helium314.keyboard.sellby.companion.theme.SellbyColors
 import helium314.keyboard.sellby.data.SellbyDatabase
 import helium314.keyboard.sellby.data.dao.PeriodStats
 import helium314.keyboard.sellby.util.CurrencyFormat
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.util.Calendar
 import kotlin.math.abs
 import kotlin.math.round
@@ -130,7 +135,7 @@ private val GREETING_CARD_HEIGHT = 123.dp
  *  range-selection logic) - is a direct 1:1 port. "Detail Transaksi"/"Detail Pelanggan" buttons
  *  are NEW (not in the Flutter reference), added per the user's own mockup - see [DetailButtonsRow]. */
 @Composable
-fun DashboardScreen(onExit: () -> Unit, onDataReset: () -> Unit) {
+fun DashboardScreen(onExit: () -> Unit, onDataReset: () -> Unit, onReplayTutorial: () -> Unit, onOpenAbout: () -> Unit) {
     val context = LocalContext.current
     BackHandler { onExit() }
     var showTestKeyboardPopup by remember { mutableStateOf(false) }
@@ -174,6 +179,10 @@ fun DashboardScreen(onExit: () -> Unit, onDataReset: () -> Unit) {
     var showDataTransaksi by remember { mutableStateOf(false) }
     var showDataPelanggan by remember { mutableStateOf(false) }
     var testKeyboardText by remember { mutableStateOf("") }
+
+    // Trial day 3: ask for a Play Store review once (no-op outside that window, and on any build
+    // that isn't installed from Google Play - see ReviewPrompter).
+    LaunchedEffect(Unit) { ReviewPrompter.maybePrompt(context) }
 
     val db = remember { SellbyDatabase.getInstance(context) }
     var stats by remember { mutableStateOf<PeriodStats?>(null) }
@@ -255,7 +264,12 @@ fun DashboardScreen(onExit: () -> Unit, onDataReset: () -> Unit) {
             Spacer(Modifier.height(10.dp))
             KeyboardActivationSection()
             Spacer(Modifier.height(24.dp)) // fixed stand-in for Flutter's flexible Spacer()
-            SupportFaqCard(onFaqClick = { showFaq = true }, onSupportClick = { contactSupport(context) })
+            SupportFaqCard(
+                onFaqClick = { showFaq = true },
+                onTutorialClick = onReplayTutorial,
+                onSupportClick = { contactSupport(context) },
+                onAboutClick = onOpenAbout,
+            )
             Spacer(Modifier.height(24.dp))
         }
     }
@@ -655,34 +669,45 @@ private fun KeyboardActivationSection() {
     // isThisImeCurrent (not isThisImeEnabled) is the real "is Sellby the active default IME right
     // now" signal - isThisImeEnabled just means it's been added to the system's enabled-IME list,
     // which stays true even after the user switches to a completely different default keyboard.
-    fun isSellbyCurrent() = UncachedInputMethodManagerUtils.isThisImeCurrent(context, imm)
+    //
+    // It is a round trip to the system's input method service (getInputMethodList), and that service
+    // is busiest exactly when this screen is opened - right after the user switched keyboards. Asked
+    // on the main thread (as it used to be, while this screen was being composed) a slow answer froze
+    // the whole app on its previous frame, which is the splash. So it is asked from a background
+    // thread, and the banner simply appears once the answer is in.
+    suspend fun isSellbyCurrent(): Boolean =
+        withContext(Dispatchers.IO) { UncachedInputMethodManagerUtils.isThisImeCurrent(context, imm) }
 
-    var isActive by remember { mutableStateOf(isSellbyCurrent()) }
+    var isActive by remember { mutableStateOf<Boolean?>(null) }
     var showWizard by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
 
     // IME activation has no SharedPreferences-change equivalent to listen to (unlike storeName
     // above), so re-check on every ON_RESUME instead - covers return paths nothing else here can:
     // system Settings or the IME picker dismissed/backgrounded via Recents, switched via another
-    // app's long-press-spacebar switcher, etc.
+    // app's long-press-spacebar switcher, etc. A new observer is replayed the current lifecycle
+    // state, so this is also the first check, right after the screen is shown.
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_RESUME) isActive = isSellbyCurrent()
+            if (event == Lifecycle.Event.ON_RESUME) scope.launch { isActive = isSellbyCurrent() }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
-    KeyboardActivationBanner(isActive) {
-        if (!isActive) {
-            showWizard = true
-        } else {
-            imm.showInputMethodPicker()
-            scope.launch {
-                repeat(40) {
-                    delay(100)
-                    val stillActive = isSellbyCurrent()
-                    if (stillActive != isActive) { isActive = stillActive; return@launch }
+    val active = isActive
+    if (active != null) {
+        KeyboardActivationBanner(active) {
+            if (!active) {
+                showWizard = true
+            } else {
+                imm.showInputMethodPicker()
+                scope.launch {
+                    repeat(40) {
+                        delay(100)
+                        val stillActive = isSellbyCurrent()
+                        if (stillActive != isActive) { isActive = stillActive; return@launch }
+                    }
                 }
             }
         }
@@ -692,7 +717,7 @@ private fun KeyboardActivationSection() {
         KeyboardSetupWizardDialog(
             onDismiss = {
                 showWizard = false
-                isActive = isSellbyCurrent()
+                scope.launch { isActive = isSellbyCurrent() }
             },
         )
     }
@@ -737,40 +762,48 @@ private fun KeyboardActivationBanner(isActive: Boolean, onToggleClick: () -> Uni
 }
 
 @Composable
-private fun SupportFaqCard(onFaqClick: () -> Unit, onSupportClick: () -> Unit) {
-    // height(IntrinsicSize.Min) makes the Row's own height equal to its tallest child (the
-    // paragraph, which can wrap to several lines) - fillMaxHeight() on the left column then lets it
-    // span that same height, so a weighted spacer inside it can push "Hubungi Dukungan" all the way
-    // down to line up with the paragraph's bottom edge, instead of both rows sitting bunched at top.
+private fun SupportFaqCard(onFaqClick: () -> Unit, onTutorialClick: () -> Unit, onSupportClick: () -> Unit, onAboutClick: () -> Unit) {
+    // Left: the title and three close-together links of equal height (labels line up in one column, the
+    // icons sit centred in a fixed-width slot); right: the explanation, its last line level with the
+    // bottom link ("Hubungi Dukungan") - hence the Bottom alignment.
     Row(
         Modifier.fillMaxWidth().padding(horizontal = 18.dp).clip(RoundedCornerShape(22.dp))
-            .background(SellbyColors.SupportCardBg).padding(18.dp)
-            .height(IntrinsicSize.Min),
-        verticalAlignment = Alignment.Top,
+            .background(SellbyColors.SupportCardBg).padding(horizontal = 18.dp, vertical = 16.dp),
+        verticalAlignment = Alignment.Bottom,
     ) {
-        Column(Modifier.fillMaxHeight()) {
+        Column {
             Text("Support & FAQs", color = SellbyColors.White, fontSize = 13.5.sp, fontWeight = FontWeight.Bold)
-            Spacer(Modifier.height(12.dp))
-            Row(Modifier.clickable { onFaqClick() }, verticalAlignment = Alignment.CenterVertically) {
-                Text("?", color = SellbyColors.TealPrimary, fontSize = 13.sp, fontWeight = FontWeight.Bold)
-                Spacer(Modifier.width(6.dp))
-                Text("Cari FAQs", color = SellbyColors.TealPrimary, fontSize = 11.5.sp, fontWeight = FontWeight.SemiBold)
-            }
-            Spacer(Modifier.weight(1f))
-            Row(Modifier.clickable { onSupportClick() }, verticalAlignment = Alignment.CenterVertically) {
-                Text("✉", color = SellbyColors.TealPrimary, fontSize = 13.sp, fontWeight = FontWeight.Bold)
-                Spacer(Modifier.width(6.dp))
-                Text("Hubungi Dukungan", color = SellbyColors.TealPrimary, fontSize = 11.5.sp, fontWeight = FontWeight.SemiBold)
-            }
+            Spacer(Modifier.height(6.dp))
+            SupportLink("?", "Cari FAQs", onFaqClick)
+            SupportLink("▶", "Lihat Tutorial", onTutorialClick, iconSize = 9.sp)
+            SupportLink("✉", "Hubungi Dukungan", onSupportClick)
+            SupportLink("i", "Tentang & Lisensi", onAboutClick)
         }
-        Spacer(Modifier.width(26.dp))
+        Spacer(Modifier.width(22.dp))
         Text(
             "Semua settingan berada di keyboard, dashboard ini hanya untuk menampilkan summary dan juga aktif/nonaktifkan keyboard",
             color = SellbyColors.White.copy(alpha = 0.7f),
             fontSize = 10.5.sp,
             lineHeight = 15.sp,
-            modifier = Modifier.weight(1f).padding(top = 4.dp),
+            // The link beside it centres its 11.5sp label in a 28dp row; this bottom padding puts the
+            // paragraph's last line on that same baseline.
+            modifier = Modifier.weight(1f).padding(bottom = 6.dp),
         )
+    }
+}
+
+/** One link of the support card: a fixed-width icon slot + the label, a compact 28dp tap row. */
+@Composable
+private fun SupportLink(icon: String, label: String, onClick: () -> Unit, iconSize: TextUnit = 12.sp) {
+    Row(
+        Modifier.clip(RoundedCornerShape(8.dp)).clickable { onClick() }.heightIn(min = 28.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(Modifier.width(20.dp), contentAlignment = Alignment.Center) {
+            Text(icon, color = SellbyColors.TealPrimary, fontSize = iconSize, fontWeight = FontWeight.Bold)
+        }
+        Spacer(Modifier.width(4.dp))
+        Text(label, color = SellbyColors.TealPrimary, fontSize = 11.5.sp, fontWeight = FontWeight.SemiBold)
     }
 }
 
@@ -778,12 +811,14 @@ private fun SupportFaqCard(onFaqClick: () -> Unit, onSupportClick: () -> Unit) {
 @Composable
 private fun FaqBottomSheet(onDismiss: () -> Unit) {
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState()) {
-        Column(Modifier.padding(horizontal = 24.dp).padding(bottom = 20.dp)) {
+        Column(Modifier.verticalScroll(rememberScrollState()).padding(horizontal = 24.dp).padding(bottom = 20.dp)) {
             Text("Pertanyaan Umum (FAQs)", fontSize = 18.sp, fontWeight = FontWeight.ExtraBold, color = SellbyColors.TextDark)
             Spacer(Modifier.height(12.dp))
             Text(
                 "1. Bagaimana cara mengaktifkan keyboard Sellby?\nTekan tombol Aktifkan di bagian atas, lalu centang Sellby Keyboard di pengaturan bahasa & masukan HP Anda.\n\n" +
-                    "2. Di mana mengatur template invoice dan produk?\nBuka keyboard Sellby di aplikasi chat apa saja, lalu tekan ikon Pengaturan di bar atas keyboard.",
+                    "2. Di mana mengatur template invoice dan produk?\nBuka keyboard Sellby di aplikasi chat apa saja, lalu tekan ikon Pengaturan di bar atas keyboard.\n\n" +
+                    "3. Bagaimana setelah masa coba 3 hari habis?\nFitur panel dibuka dengan sekali bayar lewat Google Play, tanpa langganan. Kalau sebelumnya sudah membeli (misalnya setelah ganti HP atau pasang ulang), buka halaman pembelian lalu ketuk Pulihkan pembelian.\n\n" +
+                    "4. Apakah teks yang saya ketik dikirim ke server?\nTidak. Teks diproses hanya di HP kamu, dan data toko disimpan di HP kamu.",
                 fontSize = 13.sp, color = Color(0xFF475569), lineHeight = 18.85.sp,
             )
         }
@@ -792,7 +827,7 @@ private fun FaqBottomSheet(onDismiss: () -> Unit) {
 
 private fun contactSupport(context: Context) {
     try {
-        val intent = Intent(Intent.ACTION_SENDTO, Uri.parse("mailto:support@sellby.com")).apply {
+        val intent = Intent(Intent.ACTION_SENDTO, Uri.parse("mailto:${SellbyLinks.SUPPORT_EMAIL}")).apply {
             putExtra(Intent.EXTRA_SUBJECT, "Bantuan Aplikasi Sellby Keyboard")
             putExtra(Intent.EXTRA_TEXT, "Halo Tim Support Sellby,\n\nSaya butuh bantuan terkait:\n")
         }

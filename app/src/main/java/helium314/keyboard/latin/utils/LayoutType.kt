@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-3.0-only
 package helium314.keyboard.latin.utils
 
 import helium314.keyboard.latin.R
@@ -22,7 +23,9 @@ enum class LayoutType {
             return map
         }
 
-        val LayoutType.folder get() = "layouts${File.separator}${name.lowercase()}"
+        // An asset path (and a path below the app's files dir): always "/" - File.separator is "\\" on a Windows host, which
+        // made every layout lookup fail in the unit tests that run there (ParserTest, InputTest), while on Android it is "/" anyway.
+        val LayoutType.folder get() = "layouts/${name.lowercase()}"
 
         val LayoutType.displayNameId get() = when (this) {
             MAIN -> R.string.subtype_no_language

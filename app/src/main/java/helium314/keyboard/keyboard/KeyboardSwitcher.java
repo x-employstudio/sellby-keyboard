@@ -17,6 +17,8 @@ import android.content.res.Configuration;
 import android.content.res.Resources;
 import android.graphics.drawable.Drawable;
 import android.os.Build;
+import android.os.Handler;
+import android.os.Looper;
 import android.os.SystemClock;
 import android.text.TextUtils;
 import android.view.ContextThemeWrapper;
@@ -343,6 +345,87 @@ public final class KeyboardSwitcher {
         mSellbyKeepPanelUntilUptimeMs = SystemClock.uptimeMillis() + SELLBY_HELPER_LAUNCH_GRACE_MS;
     }
 
+    /** What to bring back once a Sellby helper Activity hands the user back to the app they were typing in. */
+    public enum SellbyHelperReturn {
+        /** The contact picker came from the Invoice panel: the keyboard returns with that panel open. */
+        INVOICE_PANEL,
+        /** A tutorial lesson came from Settings -> Tutorial: the keyboard returns on that list of lessons. */
+        SETTINGS_TUTORIAL_LIST,
+    }
+
+    // A helper that never reports back must not keep a panel protected forever; a tutorial lesson takes minutes.
+    private static final long SELLBY_HELPER_MAX_MS = 10 * 60 * 1000;
+    private static final long SELLBY_RESHOW_FIRST_DELAY_MS = 300;
+    private static final long SELLBY_RESHOW_RETRY_MS = 200;
+    private static final int SELLBY_RESHOW_MAX_ATTEMPTS = 25;
+    /** The keyboard must report "shown" this many polls in a row before the panel is restored (a late hide
+     *  from the helper Activity closing would otherwise undo it again). */
+    private static final int SELLBY_RESHOW_STABLE_POLLS = 2;
+
+    @Nullable private SellbyHelperReturn mSellbyPendingReturn = null;
+    private final Handler mReshowHandler = new Handler(Looper.getMainLooper());
+    private int mReshowAttempts = 0;
+    private int mReshowStablePolls = 0;
+
+    /** Call right before launching a helper Activity (contact picker, tutorial lesson) that gives the user
+     *  back to the app they were typing in. Launching it hides the keyboard like any app switch does:
+     *  the open panel is kept through every hide until [endSellbyHelper] (the old fixed 6 second grace
+     *  was shorter than choosing a contact or running a lesson, so the panel was closed by a hide on the
+     *  way back). */
+    public void beginSellbyHelper(@NonNull SellbyHelperReturn willReturnTo) {
+        mReshowHandler.removeCallbacks(mReshowRunnable);
+        mSellbyPendingReturn = willReturnTo;
+        mSellbyKeepPanelUntilUptimeMs = SystemClock.uptimeMillis() + SELLBY_HELPER_MAX_MS;
+    }
+
+    /** The helper Activity is done (picked, cancelled, finished or skipped): bring the keyboard back and
+     *  restore what [beginSellbyHelper] promised. A no-op when no helper was begun (e.g. the Purchase page). */
+    public void endSellbyHelper() {
+        if (mSellbyPendingReturn == null) return;
+        // The hide/show churn of the trip back must not close the panel either.
+        mSellbyKeepPanelUntilUptimeMs = SystemClock.uptimeMillis() + SELLBY_RESHOW_FIRST_DELAY_MS
+                + SELLBY_RESHOW_RETRY_MS * SELLBY_RESHOW_MAX_ATTEMPTS + 1500;
+        mReshowAttempts = 0;
+        mReshowStablePolls = 0;
+        mReshowHandler.removeCallbacks(mReshowRunnable);
+        mReshowHandler.postDelayed(mReshowRunnable, SELLBY_RESHOW_FIRST_DELAY_MS);
+    }
+
+    private final Runnable mReshowRunnable = new Runnable() {
+        @Override
+        public void run() {
+            final SellbyHelperReturn target = mSellbyPendingReturn;
+            if (target == null || mLatinIME == null || mSellbyToolbarView == null) return;
+            if (mLatinIME.isInputViewShown()) {
+                if (++mReshowStablePolls >= SELLBY_RESHOW_STABLE_POLLS) {
+                    mSellbyPendingReturn = null;
+                    mSellbyKeepPanelUntilUptimeMs = SystemClock.uptimeMillis() + 1000;
+                    switch (target) {
+                        case INVOICE_PANEL -> mSellbyToolbarView.restoreInvoicePanel();
+                        case SETTINGS_TUTORIAL_LIST -> mSellbyToolbarView.openSettingsTutorialList();
+                    }
+                    return;
+                }
+            } else {
+                mReshowStablePolls = 0;
+                if (++mReshowAttempts > SELLBY_RESHOW_MAX_ATTEMPTS) {
+                    // Give up quietly: the keyboard comes back with the next tap in the field, and the
+                    // panel (kept through the hide) is still there.
+                    mSellbyPendingReturn = null;
+                    mSellbyKeepPanelUntilUptimeMs = 0;
+                    return;
+                }
+                // Nothing to show until the app's field has its input connection back; asking again every
+                // few hundred ms is harmless until it has.
+                // requestShowSelf() only exists from API 28 (calling it threw NoSuchMethodError on Android 6-8);
+                // before that the plain showWindow() asks for the same thing.
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) mLatinIME.requestShowSelf(0);
+                else mLatinIME.showWindow(true);
+            }
+            mReshowHandler.postDelayed(this, SELLBY_RESHOW_RETRY_MS);
+        }
+    };
+
     public void onHideWindow() {
         if (mKeyboardView != null) {
             mKeyboardView.onHideWindow();
@@ -559,6 +642,34 @@ public final class KeyboardSwitcher {
             return;
         mEmojiPalettesView.clearKeyboardCache();
         reloadMainKeyboard();
+    }
+
+    private final Handler mKeyboardHeightHandler = new Handler(Looper.getMainLooper());
+    private final Runnable mApplyKeyboardHeightRunnable = new Runnable() {
+        @Override
+        public void run() {
+            if (mCurrentInputView == null || mKeyboardView == null || mThemeContext == null) return;
+            // Same minimum onCreateInputView() reserves (see the comment there): the stack must never
+            // measure shorter than the keyboard it is about to be rebuilt at.
+            final int newHeight = ResourceUtils.getKeyboardHeight(mThemeContext.getResources(), Settings.getValues());
+            // The "Ukuran keyboard" slider is continuous: neighbouring positions are well under a pixel
+            // apart, so most steps of a drag would rebuild an identical keyboard. The minimum height set
+            // here and in onCreateInputView() is the height the keys were last built for.
+            if (newHeight == mKeyboardView.getMinimumHeight()) return;
+            mKeyboardView.setMinimumHeight(newHeight);
+            reloadKeyboard();
+            if (mSellbyToolbarView != null) mSellbyToolbarView.onKeyboardHeightChanged();
+        }
+    };
+
+    /** Sellby (Settings -> Atur Keyboard -> "Ukuran keyboard"): the height scale pref was just written -
+     *  rebuild the keys at the new height right now, while the Settings panel stays open. The stock way
+     *  to apply a size change, setThemeNeedsReload(), hides and re-shows the whole keyboard window, which
+     *  would close the very panel the slider lives in (and is not live while dragging).
+     *  Requests are coalesced: a fast drag fires many changes, only the latest one is rebuilt. */
+    public void applyKeyboardHeightLive() {
+        mKeyboardHeightHandler.removeCallbacks(mApplyKeyboardHeightRunnable);
+        mKeyboardHeightHandler.post(mApplyKeyboardHeightRunnable);
     }
 
     public void reloadMainKeyboard() {

@@ -36,6 +36,7 @@ import helium314.keyboard.latin.utils.Theme
 import helium314.keyboard.latin.utils.UncachedInputMethodManagerUtils
 import helium314.keyboard.latin.utils.cleanUnusedMainDicts
 import helium314.keyboard.latin.utils.prefs
+import helium314.keyboard.sellby.companion.CompanionLauncher
 import helium314.keyboard.latin.utils.END_DATE_EPOCH_MILLIS
 import helium314.keyboard.latin.utils.TWO_WEEKS_IN_MILLIS
 import helium314.keyboard.settings.dialogs.ConfirmationDialog
@@ -65,6 +66,16 @@ open class SettingsActivity : ComponentActivity(), SharedPreferences.OnSharedPre
     @OptIn(ExperimentalMaterial3Api::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // Sellby: HeliBoard's settings UI (About, Backup/Restore, personal dictionary, hidden features, debug
+        // unlock ...) is not part of the product any more - and Backup/Restore could rewrite the trial and
+        // premium state. Every way into this Activity (the system's "Settings" link of the keyboard, the gear
+        // key through LatinIME.launchSettings, a stale shortcut) is sent to the companion app instead. The
+        // rest of this class is kept only because other code reads its companion object (forceNight/forceTheme).
+        if (REDIRECT_TO_SELLBY) {
+            CompanionLauncher.openDashboard(this)
+            finish()
+            return
+        }
         if (Settings.getValues() == null) {
             val inputAttributes = InputAttributes(EditorInfo(), false, packageName)
             Settings.getInstance().loadSettings(this, resources.configuration.locale(), inputAttributes)
@@ -136,7 +147,7 @@ open class SettingsActivity : ComponentActivity(), SharedPreferences.OnSharedPre
 
     override fun onStart() {
         super.onStart()
-        prefs.registerOnSharedPreferenceChangeListener(this)
+        if (!REDIRECT_TO_SELLBY) prefs.registerOnSharedPreferenceChangeListener(this)
     }
 
     override fun onStop() {
@@ -198,6 +209,9 @@ open class SettingsActivity : ComponentActivity(), SharedPreferences.OnSharedPre
     }
 
     companion object {
+        /** See onCreate: HeliBoard's settings UI is replaced by the Sellby companion app. */
+        private const val REDIRECT_TO_SELLBY = true
+
         // public write so compose previews can show the screens
         // having it in a companion object is not ideal as it will stay in memory even after settings are closed
         // but it's small enough to not care

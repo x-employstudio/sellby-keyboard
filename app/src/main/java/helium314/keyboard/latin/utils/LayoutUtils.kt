@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-3.0-only
 package helium314.keyboard.latin.utils
 
 import android.content.Context
@@ -32,9 +33,9 @@ object LayoutUtils {
     fun getContent(layoutType: LayoutType, layoutName: String, context: Context): String {
         val layouts = context.assets.list(layoutType.folder)!!
         layouts.firstOrNull { it.startsWith("$layoutName.") }
-            ?.let { return context.assets.open(layoutType.folder + File.separator + it).reader().readText() }
+            ?.let { return context.assets.open(layoutType.folder + "/" + it).reader().readText() }
         val fallback = layouts.first { it.startsWith(layoutType.default) } // must exist!
-        return context.assets.open(layoutType.folder + File.separator + fallback).reader().readText()
+        return context.assets.open(layoutType.folder + "/" + fallback).reader().readText()
     }
 
     fun getContentWithPlus(mainLayoutName: String, locale: Locale, context: Context): String {

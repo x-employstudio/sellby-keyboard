@@ -139,8 +139,11 @@ class DictionaryFacilitatorImpl : DictionaryFacilitator {
 
         val locales = getUsedLocales(newLocale, context)
 
+        // Sellby: Dictionary.TYPE_USER (the system-wide personal dictionary of Android, read through the
+        // READ_USER_DICTIONARY permission) is no longer loaded: Sellby does not declare that permission - reading
+        // the user's personal word list has nothing to do with a business keyboard and, without the
+        // permission, the query would throw a SecurityException on a background thread.
         val subDictTypesToUse = listOfNotNull(
-            Dictionary.TYPE_USER,
             if (useAppsDict) Dictionary.TYPE_APPS else null,
             if (usePersonalizedDicts) Dictionary.TYPE_USER_HISTORY else null,
             if (useContactsDict && PermissionsUtil.checkAllPermissionsGranted(context, Manifest.permission.READ_CONTACTS))

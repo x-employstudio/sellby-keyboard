@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-3.0-only
 package helium314.keyboard
 
 import android.view.MotionEvent
@@ -45,10 +46,18 @@ class InputTest {
         assertEquals("a", ShadowInputMethodService.text)
     }
 
-    @Test fun holdShift() {
+    // Sellby: caps lock comes from double-tapping shift. Holding shift no longer locks it, because the
+    // shift popup (caps lock) belongs to the "layout" popup-key type, which Sellby's default popup order
+    // switches off. So holding is just a long shift press.
+    @Test fun holdShiftDoesNotLock() {
         touchKey(KeyCode.SHIFT, MotionEvent.ACTION_DOWN)
         assertEquals(KeyboardElement.ALPHABET_MANUAL_SHIFTED, keyboardSwitcher.keyboard?.mId?.element)
         ShadowLooper.runUiThreadTasksIncludingDelayedTasks() // this doesn't actually wait, just results in handling the delayed message immediately
+        assertEquals(KeyboardElement.ALPHABET_MANUAL_SHIFTED, keyboardSwitcher.keyboard?.mId?.element)
+    }
+
+    @Test fun doubleTapShiftLocksCaps() {
+        lockCapsWithDoubleTap()
         assertEquals(KeyboardElement.ALPHABET_SHIFT_LOCKED, keyboardSwitcher.keyboard?.mId?.element)
     }
 
@@ -62,27 +71,34 @@ class InputTest {
 
     @Test fun endCapsLockWithShift() {
         // keyboardSwitcher.setAlphabetShiftLockedKeyboard() isn't enough because it doesn't set the fully correct state
-        touchKey(KeyCode.SHIFT, MotionEvent.ACTION_DOWN)
-        ShadowLooper.runUiThreadTasksIncludingDelayedTasks()
-        touchKey(KeyCode.SHIFT, MotionEvent.ACTION_UP)
+        lockCapsWithDoubleTap()
+        assertEquals(KeyboardElement.ALPHABET_SHIFT_LOCKED, keyboardSwitcher.keyboard?.mId?.element)
+        ShadowLooper.runUiThreadTasksIncludingDelayedTasks() // lets the double-tap window expire
 
-        // need to set event time to prevent mTouchNoiseThresholdTime thing triggering (todo: should be done automatically in the test)
-        touchKey(KeyCode.SHIFT, MotionEvent.ACTION_DOWN, 50L)
-        touchKey(KeyCode.SHIFT, MotionEvent.ACTION_UP, 50L)
+        // later event time to get past the mTouchNoiseThresholdTime filter after the double tap (todo: should be done automatically in the test)
+        touchKey(KeyCode.SHIFT, MotionEvent.ACTION_DOWN, 500L)
+        touchKey(KeyCode.SHIFT, MotionEvent.ACTION_UP, 500L)
         assertEquals(KeyboardElement.ALPHABET, keyboardSwitcher.keyboard?.mId?.element)
     }
 
     @Test fun slidingInputFromCapsLock() {
-        touchKey(KeyCode.SHIFT, MotionEvent.ACTION_DOWN)
-        ShadowLooper.runUiThreadTasksIncludingDelayedTasks()
-        touchKey(KeyCode.SHIFT, MotionEvent.ACTION_UP)
+        lockCapsWithDoubleTap()
+        ShadowLooper.runUiThreadTasksIncludingDelayedTasks() // lets the double-tap window expire
 
-        touchKey(KeyCode.SHIFT, MotionEvent.ACTION_DOWN, 50L)
+        touchKey(KeyCode.SHIFT, MotionEvent.ACTION_DOWN, 500L)
         assertEquals(KeyboardElement.ALPHABET, keyboardSwitcher.keyboard?.mId?.element)
         touchKey('f'.code, MotionEvent.ACTION_MOVE)
         touchKey('f'.code, MotionEvent.ACTION_UP)
         assertEquals("f", ShadowInputMethodService.text)
         assertEquals(KeyboardElement.ALPHABET_SHIFT_LOCKED, keyboardSwitcher.keyboard?.mId?.element)
+    }
+
+    private fun lockCapsWithDoubleTap() {
+        touchKey(KeyCode.SHIFT, MotionEvent.ACTION_DOWN)
+        touchKey(KeyCode.SHIFT, MotionEvent.ACTION_UP)
+        // the later event time is needed to get past the up-to-down touch noise filter
+        touchKey(KeyCode.SHIFT, MotionEvent.ACTION_DOWN, 50L)
+        touchKey(KeyCode.SHIFT, MotionEvent.ACTION_UP, 50L)
     }
 
     private fun touchKey(code: Int, action: Int, eventTime: Long = 0L) {

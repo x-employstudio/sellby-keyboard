@@ -107,6 +107,9 @@ fun ProfilTokoScreen(onSaved: () -> Unit) {
                 .apply()
             delay(400)
             isSaving = false
+            // The next screen (tutorial) draws its own dummy keyboard - drop focus and the real IME first.
+            focusManager.clearFocus()
+            keyboardController?.hide()
             onSaved()
         }
     }

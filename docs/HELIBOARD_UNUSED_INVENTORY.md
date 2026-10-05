@@ -23,8 +23,8 @@ itu atau menyisakan stub.
 
 ## Gelombang 1 — SUDAH DIHAPUS, `assembleDebug` BUILD SUCCESSFUL (paling aman: tidak ada rujukan dari build/kode)
 
-Penghapusan ini belum di-commit (muncul sebagai ` D` di `git status`); kalau ada yang perlu dikembalikan
-sebelum commit: `git checkout -- <path>`.
+Penghapusan ini sudah masuk commit `81f10dd`. Untuk mengembalikan salah satu file/folder:
+`git checkout 81f10dd~1 -- <path>`.
 
 Semua file di bawah tercatat di git dan belum pernah dimodifikasi, jadi bisa dikembalikan:
 `git checkout -- <path>` (atau `git restore`).
@@ -71,6 +71,8 @@ Semua file di bawah tercatat di git dan belum pernah dimodifikasi, jadi bisa dik
   `AppsManager`, `UserBinaryDictionary`, `UserHistoryDictionary`); `dictionarypack`,
   `DictionaryPackInstallBroadcastReceiver`, `DictionaryDumpBroadcastReceiver`, `PermissionsUtil`.
 - Manifest: izin `READ_CONTACTS`, `READ_USER_DICTIONARY`, `WRITE_USER_DICTIONARY`, blok `<queries>`.
+  **Sudah dibereskan di Batch 2 rilis (Okt 2026):** `READ_USER_DICTIONARY` dan `WRITE_USER_DICTIONARY` dibuang, `<queries>` kini hanya `android.view.InputMethod`; `READ_CONTACTS` sengaja DIPERTAHANKAN (dipakai tombol kontak di panel Invoice, diminta sekali agar picker konsisten di semua merek HP);
+  kamus pengguna sistem tidak lagi dimuat (`DictionaryFacilitatorImpl`).
 - Aset: `assets/dicts` (18 kamus, ±32 MB, TANPA kamus Indonesia), `known_dict_hashes.txt`,
   `dictionaries_in_dict_repo.csv`.
 - Native: `jni/` (±2 MB). Hati-hati: `ProximityInfo` juga dipakai koreksi sentuhan & ketik geser.

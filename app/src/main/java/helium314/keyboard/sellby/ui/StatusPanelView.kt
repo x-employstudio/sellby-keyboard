@@ -7,7 +7,6 @@ import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.util.AttributeSet
 import android.view.Gravity
-import android.view.HapticFeedbackConstants
 import android.view.View
 import android.view.ViewGroup
 import android.widget.EditText
@@ -23,7 +22,9 @@ import androidx.recyclerview.widget.RecyclerView
 import androidx.viewpager2.widget.CompositePageTransformer
 import androidx.viewpager2.widget.MarginPageTransformer
 import androidx.viewpager2.widget.ViewPager2
+import helium314.keyboard.event.HapticEvent
 import helium314.keyboard.keyboard.KeyboardSwitcher
+import helium314.keyboard.latin.AudioAndHapticFeedbackManager
 import helium314.keyboard.latin.R
 import helium314.keyboard.latin.utils.prefs
 import helium314.keyboard.sellby.data.SellbyDatabase
@@ -227,7 +228,7 @@ class StatusPanelView @JvmOverloads constructor(
                 }
                 isClickable = true; isFocusable = true
                 setOnClickListener {
-                    it.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                    AudioAndHapticFeedbackManager.getInstance().performHapticFeedback(it, HapticEvent.KEY_PRESS)
                     if (selectedTabIndex != index) {
                         selectedTabIndex = index
                         viewPager.setCurrentItem(0, false)

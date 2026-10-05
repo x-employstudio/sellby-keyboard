@@ -23,6 +23,9 @@ import helium314.keyboard.latin.R
 import helium314.keyboard.latin.common.ColorType
 import helium314.keyboard.latin.settings.Settings
 import helium314.keyboard.latin.utils.ResourceUtils
+import helium314.keyboard.sellby.companion.CompanionLauncher
+import helium314.keyboard.sellby.companion.TrialPolicy
+import helium314.keyboard.sellby.companion.TrialState
 import helium314.keyboard.sellby.data.entity.AutoText
 import helium314.keyboard.sellby.input.AutoTextSuggestionEngine
 import helium314.keyboard.sellby.ui.AutoTextPanelView
@@ -300,6 +303,12 @@ class SellbyToolbarView @JvmOverloads constructor(
      *  next keystroke. */
     fun updateAutoTextSuggestions(matches: List<AutoText>, queryEmpty: Boolean, onPick: (AutoText) -> Unit) {
         if (!::suggestionStrip.isInitialized) return
+        // Auto-Text is one of the locked features: once the trial is over its shortcut strip must not
+        // keep working through this side door.
+        if (TrialPolicy.isLocked(context)) {
+            clearAutoTextSuggestions()
+            return
+        }
         if (queryEmpty) suggestionBarDismissed = false
         if (queryEmpty || matches.isEmpty() || suggestionBarDismissed) {
             clearAutoTextSuggestions()
@@ -341,6 +350,16 @@ class SellbyToolbarView @JvmOverloads constructor(
     }
 
     private fun onTabTapped(tab: Tab) {
+        // The 3-day trial starts the first time a feature is used, not only when the companion app's "Coba GRATIS"
+        // page is pressed: a keyboard enabled straight from the system settings (the companion app never opened)
+        // used to stay in "not started" - and "not started" is unlocked - for ever. A no-op once it has started.
+        if (TrialPolicy.state(context) is TrialState.NotStarted) TrialPolicy.startIfNeeded(context)
+        // Free trial over (and not bought): the five feature tabs open the Purchase page in the
+        // companion app instead of a panel. Settings (onSettingsTapped) stays free.
+        if (TrialPolicy.isLocked(context)) {
+            CompanionLauncher.openPurchase(context)
+            return
+        }
         // Leave Emoji/Clipboard mode first if we're currently browsing one of those - the panel
         // this tab opens needs the physical alphabet keyboard (via SellbyInputRouter) for its own
         // input fields, not the emoji grid or clipboard list. No-op otherwise. See KeyboardSwitcher.
@@ -464,6 +483,24 @@ class SellbyToolbarView @JvmOverloads constructor(
         openSettingsPanel { it.openPaymentMethodsDirectly() }
     }
 
+    /** The contact picker (opened from the Invoice panel) is done and the keyboard is back: make sure the
+     *  Invoice panel is the open one. A panel that was kept open through the trip is left alone -
+     *  tapping its tab again would close it. */
+    fun restoreInvoicePanel() {
+        if (activeTab != Tab.INVOICE) onTabTapped(Tab.INVOICE)
+    }
+
+    /** A tutorial lesson (opened from Settings -> Tutorial) is done and the keyboard is back: show Settings
+     *  on the list of lessons again. Same landing mechanism as [openSettingsPaymentMethods]. */
+    fun openSettingsTutorialList() {
+        KeyboardSwitcher.getInstance().exitUtilityModeIfNeeded()
+        activeTab?.let { updateTabColors(it, active = false) }
+        activeTab = null
+        settingsActive = true
+        updateSettingsColor()
+        openSettingsPanel { it.openTutorialListDirectly() }
+    }
+
     /** Fase 4 hook: real panels call this from their field focus/unfocus callbacks. */
     fun setPhysicalKeysVisible(visible: Boolean) {
         physicalKeys.visibility = if (visible) View.VISIBLE else View.GONE
@@ -491,9 +528,31 @@ class SellbyToolbarView @JvmOverloads constructor(
         if (::physicalKeys.isInitialized) physicalKeys.visibility = View.VISIBLE
     }
 
+    // The arguments of the last openPanel(), so onKeyboardHeightChanged() can recompute the same panel
+    // against the new keyboard height.
+    private var lastPanelPercent = DEFAULT_HEIGHT_PERCENT
+    private var lastPanelMaxTotalFraction = MAX_TOTAL_SCREEN_FRACTION
+
     private fun openPanel(percent: Float, maxTotalFraction: Float = MAX_TOTAL_SCREEN_FRACTION) {
+        lastPanelPercent = percent
+        lastPanelMaxTotalFraction = maxTotalFraction
         panelRegion.visibility = View.VISIBLE
         animatePanelHeight(computePanelHeight(percent, maxTotalFraction))
+    }
+
+    /** KeyboardSwitcher.applyKeyboardHeightLive() just rebuilt the keys at a new height (Settings ->
+     *  Atur Keyboard -> "Ukuran keyboard"). The panel above sizes itself to whatever the keyboard leaves
+     *  of the screen budget (see [computePanelHeight]), so an open panel must be recomputed - otherwise
+     *  the whole stack grows/shrinks with the keys and the panel's top edge, and the slider with it,
+     *  moves away from the user's finger. Applied directly (no animation): this runs on every step of a
+     *  drag. */
+    fun onKeyboardHeightChanged() {
+        if (!::panelRegion.isInitialized) return
+        if (activeTab == null && !settingsActive) return
+        heightAnimator?.cancel()
+        val lp = panelRegion.layoutParams
+        lp.height = computePanelHeight(lastPanelPercent, lastPanelMaxTotalFraction)
+        panelRegion.layoutParams = lp
     }
 
     private fun closePanel() {

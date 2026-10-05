@@ -63,7 +63,9 @@ public final class JniUtils {
         } catch (Exception e) {
             userSuppliedLibrary = null;
         }
-        if (!BuildConfig.BUILD_TYPE.equals("nouserlib") && userSuppliedLibrary != null) {
+        // Sellby: only debug builds may load a native library from the app's files dir. The release build
+        // (the one that ships to Google Play) must never load code that did not come with the APK.
+        if (BuildConfig.DEBUG && userSuppliedLibrary != null) {
             String wantedChecksum = expectedDefaultChecksum();
             try {
                 if (app != null) {

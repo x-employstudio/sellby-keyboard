@@ -56,7 +56,7 @@ Locale: ${Locale.getDefault()}
 Stack trace:
 $stackTrace
 Last log:
-${Log.getLog(100).joinToString("\n")}
+${if (BuildConfig.DEBUG || DebugFlags.DEBUG_ENABLED) Log.getLog(100).joinToString("\n") else "(omitted in release builds: log lines can contain what the user typed)"}
 """)
         defaultUncaughtExceptionHandler!!.uncaughtException(t, e)
     }

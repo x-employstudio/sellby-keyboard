@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kebijakan Privasi - Sellby Keyboard</title>
+<style>
+  body { font: 16px/1.6 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; color: #1e293b; margin: 0; background: #f8fafc; }
+  main { max-width: 760px; margin: 0 auto; padding: 24px 18px 64px; }
+  h1 { font-size: 1.7rem; margin: 0 0 4px; }
+  h2 { font-size: 1.2rem; margin: 32px 0 8px; color: #0f172a; }
+  p, li { margin: 6px 0; }
+  table { border-collapse: collapse; width: 100%; font-size: 0.93rem; background: #fff; }
+  th, td { border: 1px solid #e2e8f0; padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: #f1f5f9; }
+  .meta { color: #64748b; font-size: 0.9rem; }
+  .box { background: #e0f2fe; border-radius: 10px; padding: 12px 16px; margin: 16px 0; }
+  a { color: #0e7490; }
+</style>
+</head>
+<body>
+<main>
+<p class="meta"><a href="privacy-en.html">English version</a> &middot; <a href="index.html">Beranda</a></p>
+<h1>Kebijakan Privasi Sellby Keyboard</h1>
+<p class="meta">Terakhir diperbarui: 5 Oktober 2026 &middot; berlaku untuk aplikasi Sellby Keyboard versi 1.0.x (paket <code>com.sellby.keyboard</code>)</p>
+
+<div class="box">
+<strong>Ringkasnya:</strong> apa yang kamu ketik diproses <strong>hanya di HP-mu</strong>. Sellby tidak punya server yang menerima ketikanmu, data pelanggan, pesanan, produk, atau rekeningmu. Semua itu disimpan di HP-mu dan tidak kami kirim ke mana pun.
+</div>
+
+<h2>1. Siapa kami</h2>
+<p>Sellby Keyboard adalah keyboard Android untuk penjual online yang dikembangkan oleh pemilik proyek Sellby ("kami"). Kontak untuk pertanyaan privasi: <a href="mailto:x.employstudio@gmail.com">x.employstudio@gmail.com</a>.</p>
+
+<h2>2. Data yang diproses dan di mana disimpan</h2>
+<table>
+<tr><th>Data</th><th>Untuk apa</th><th>Di mana</th></tr>
+<tr><td>Teks yang kamu ketik dengan keyboard</td><td>Memasukkan teks ke aplikasi yang kamu pakai</td><td>Hanya diproses di HP; <strong>tidak disimpan oleh kami dan tidak dikirim</strong></td></tr>
+<tr><td>Data pelanggan, pesanan, produk, dan status pesanan yang kamu isi</td><td>Membuat invoice, status, dan ringkasan di dashboard</td><td>Penyimpanan aplikasi di HP-mu</td></tr>
+<tr><td>Metode pembayaran (nama bank/e-wallet, nomor rekening) dan foto QRIS yang kamu tambahkan</td><td>Dimasukkan ke teks invoice yang kamu kirim</td><td>Penyimpanan aplikasi di HP-mu</td></tr>
+<tr><td>Profil toko (nama, alamat, nomor telepon), template pesan, Auto-Text, pengaturan keyboard</td><td>Mengisi invoice dan pesan cepat</td><td>Penyimpanan aplikasi di HP-mu</td></tr>
+<tr><td>Riwayat clipboard (teks/gambar yang kamu salin)</td><td>Fitur clipboard di keyboard; otomatis dihapus setelah 10 menit kecuali kamu menyematkannya. Salinan yang ditandai sensitif oleh aplikasi sumbernya (mis. pengelola kata sandi) tidak dicatat</td><td>Penyimpanan aplikasi di HP-mu</td></tr>
+<tr><td>Satu kontak yang kamu pilih (nama dan nomor telepon)</td><td>Mengisi data pembeli di invoice</td><td>Dibaca saat kamu memilihnya; tersimpan lokal hanya bila kamu menyimpan pelanggan/pesanannya</td></tr>
+<tr><td>Waktu mulai masa coba dan status pembelian premium</td><td>Menentukan fitur mana yang terbuka</td><td>Penyimpanan aplikasi di HP-mu; waktu mulai masa coba juga disimpan di Block Store milik Google Play services (lihat bagian 5)</td></tr>
+</table>
+
+<h2>3. Yang tidak kami lakukan</h2>
+<ul>
+<li>Kami tidak merekam, mengirim, atau menjual apa yang kamu ketik.</li>
+<li>Kami tidak memakai SDK iklan atau analitik, dan tidak menampilkan iklan.</li>
+<li>Kami tidak membuat akun pengguna dan tidak meminta nama, email, atau nomor teleponmu untuk memakai aplikasi.</li>
+<li>Kami tidak memiliki server yang menyimpan data tokomu.</li>
+</ul>
+
+<h2>4. Izin yang diminta aplikasi</h2>
+<ul>
+<li><strong>Kontak</strong> (<code>READ_CONTACTS</code>): diminta sekali, saat pertama kali kamu mengetuk tombol kontak di panel Invoice, supaya pemilihan kontak berjalan sama di semua merek HP. Aplikasi hanya membaca kontak yang kamu ketuk di daftar. Menolak izin tidak menghalangimu mengisi data pembeli secara manual.</li>
+<li><strong>Getar</strong> dan <strong>Mulai saat HP menyala</strong>: untuk getaran tombol dan menyiapkan keyboard setelah HP dinyalakan ulang.</li>
+<li><strong>Internet</strong> dan <strong>status jaringan</strong>: dideklarasikan oleh library Google Play Billing (lihat bagian 5). Keyboard tidak memakainya untuk mengirim apa yang kamu ketik.</li>
+</ul>
+
+<h2>5. Layanan Google yang dipakai</h2>
+<p>Aplikasi memakai layanan Google yang tunduk pada kebijakan privasi Google (<a href="https://policies.google.com/privacy">policies.google.com/privacy</a>):</p>
+<ul>
+<li><strong>Google Play Billing</strong>: pembelian premium sekali bayar diproses sepenuhnya oleh Google Play. Kami tidak menerima nomor kartu atau data pembayaranmu; aplikasi hanya mengetahui status pembeliannya. Library ini dapat mengirim log penggunaan ke Google, di luar kendali kami.</li>
+<li><strong>Google Play In-App Review</strong>: menampilkan permintaan ulasan Play Store pada hari ke-3 masa coba.</li>
+<li><strong>Block Store (Google Play services)</strong>: menyimpan salinan waktu mulai masa coba di luar data aplikasi, supaya masa coba 3 hari berlaku sekali per perangkat dan tidak kembali lagi karena aplikasi dipasang ulang. Hanya satu angka waktu yang disimpan, tanpa data pribadi.</li>
+<li><strong>Pencadangan otomatis Android (Google Drive)</strong>: bila fitur cadangan HP-mu aktif, Android dapat mencadangkan data aplikasi (data toko, foto QRIS, pengaturan, status masa coba/pembelian) ke akun Google-mu dan memulihkannya di HP baru. Ini dikendalikan oleh pengaturan cadangan HP-mu dan Google, bukan oleh kami. Riwayat clipboard dan kamus tidak dicadangkan.</li>
+</ul>
+
+<h2>6. Data yang kamu bagikan sendiri</h2>
+<p>Beberapa fitur mengirim data keluar hanya atas tindakanmu: mengirim teks invoice/status ke WhatsApp, WhatsApp Business, Telegram, atau Instagram; membuka situs atau aplikasi ekspedisi untuk cek ongkir; menyimpan ekspor Excel ke lokasi yang kamu pilih lewat pemilih berkas sistem. Setelah itu, data mengikuti kebijakan privasi aplikasi atau layanan tujuan.</p>
+
+<h2>7. Menghapus data</h2>
+<ul>
+<li><strong>Hapus Semua Data</strong> (Pengaturan di keyboard): menghapus data pelanggan, pesanan, produk, rekening, foto QRIS, profil toko, dan template. Penanda masa coba dan status pembelian sengaja dipertahankan agar masa coba tidak bisa diulang dan pembelian tidak hilang.</li>
+<li><strong>Copot pemasangan aplikasi</strong>: menghapus semua data aplikasi dari HP. Salinan di cadangan Google dapat dihapus lewat pengaturan cadangan akun Google-mu.</li>
+<li>Karena data tokomu tidak ada di server kami, kami tidak dapat melihat atau menghapusnya untukmu; kamu mengendalikannya langsung di HP-mu.</li>
+</ul>
+
+<h2>8. Anak-anak</h2>
+<p>Sellby Keyboard ditujukan untuk penjual dewasa dan tidak diarahkan kepada anak di bawah 13 tahun. Kami tidak dengan sengaja mengumpulkan data dari anak-anak.</p>
+
+<h2>9. Keamanan</h2>
+<p>Data disimpan di penyimpanan privat aplikasi di HP-mu, dilindungi oleh sistem Android dan kunci layar HP-mu. Tidak ada metode penyimpanan yang sepenuhnya bebas risiko; jaga HP-mu dengan kunci layar.</p>
+
+<h2>10. Perubahan kebijakan</h2>
+<p>Bila kebijakan ini berubah (misalnya saat ada fitur baru yang mengirim data ke server), kami memperbarui halaman ini dan tanggal di atasnya sebelum versi aplikasi yang bersangkutan dirilis.</p>
+
+<h2>11. Kontak</h2>
+<p>Pertanyaan atau permintaan terkait privasi: <a href="mailto:x.employstudio@gmail.com">x.employstudio@gmail.com</a>.</p>
+</main>
+</body>
+</html>

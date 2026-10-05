@@ -42,6 +42,7 @@ import java.util.*
 import kotlin.math.min
 import kotlin.streams.asSequence
 import kotlin.test.BeforeTest
+import kotlin.test.Ignore
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -170,8 +171,8 @@ class InputLogicTest {
 
     // todo: make it work, but it might not be that simple because adding is done in combiner
     //  https://github.com/HeliBorg/HeliBoard/issues/214
+    @Ignore("known upstream limitation (HeliBoard issue 214), kept as documentation of the expected behavior")
     @Test fun insertLetterIntoWordHangulFails() {
-        if (BuildConfig.BUILD_TYPE == "runTests") return
         latinIME.switchToSubtype(SubtypeSettings.getResourceSubtypesForLocale("ko".constructLocale()).first())
         chainInput("ㅛㅎㄹㅎㅕㅛ")
         setCursorPosition(3)
@@ -731,6 +732,14 @@ class InputLogicTest {
 
         // reset settings
         latinIME.prefs().edit { clear() }
+        // Sellby ships with suggestions, autocorrect and next-word prediction OFF (a
+        // business keyboard without a dictionary). These inherited engine tests describe the stock behaviour of the
+        // typing logic, so they run with those switches on - otherwise ~40 of them fail only because of the defaults.
+        latinIME.prefs().edit {
+            putBoolean(Settings.PREF_SHOW_SUGGESTIONS, true)
+            putBoolean(Settings.PREF_AUTO_CORRECTION, true)
+            putBoolean(Settings.PREF_BIGRAM_PREDICTIONS, true)
+        }
 
         setText("") // (re)sets selection and composing word
     }

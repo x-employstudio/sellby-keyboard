@@ -825,9 +825,10 @@ class InvoicePanelView @JvmOverloads constructor(
             setPadding(dp(9f), dp(9f), dp(9f), dp(9f))
             isClickable = true; isFocusable = true
             setOnClickListener {
-                // The picker hides the keyboard; the user comes straight back to this panel, so it
-                // must survive that one hide (see KeyboardSwitcher.keepSellbyPanelThroughNextHide).
-                KeyboardSwitcher.getInstance().keepSellbyPanelThroughNextHide()
+                // The picker hides the keyboard; the user comes back to this panel, so it must survive
+                // every hide on the way and the keyboard must return with it once the picker is done
+                // (see KeyboardSwitcher.beginSellbyHelper/endSellbyHelper).
+                KeyboardSwitcher.getInstance().beginSellbyHelper(KeyboardSwitcher.SellbyHelperReturn.INVOICE_PANEL)
                 context.startActivity(Intent(context, ContactPickerActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
             }
         }
@@ -1175,7 +1176,7 @@ class InvoicePanelView @JvmOverloads constructor(
     }
 
     private fun buildManualProductRow(): View {
-        manualNameField = plainField("Nama Barang").apply {
+        manualNameField = plainField("Nama Produk").apply {
             layoutParams = LinearLayout.LayoutParams(0, dp(36f), 1f)
         }
         // Typable via the numpad now (was a plain, non-editable label) - request was to keep the

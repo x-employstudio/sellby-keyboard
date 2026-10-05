@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package helium314.keyboard.sellby.input
 
+import android.text.method.SingleLineTransformationMethod
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewConfiguration
@@ -84,7 +85,9 @@ object SellbyInputRouter {
         // isFocusableInTouchMode (set by enableSellbyRouting below) - regular buttons/pills in this
         // app are isFocusable but NOT isFocusableInTouchMode, so focusSearch (which honors touch-mode
         // focusability) skips them and only ever lands on another Sellby-routed field or null.
-        if (primaryCode == Constants.CODE_ENTER && field.isSingleLine) {
+        // (TextView.isSingleLine() only exists from API 29 - calling it threw NoSuchMethodError on Android 6-9,
+        // so a single-line field is recognised by what setSingleLine(true) installs: its transformation method.)
+        if (primaryCode == Constants.CODE_ENTER && field.transformationMethod is SingleLineTransformationMethod) {
             (field.focusSearch(View.FOCUS_DOWN) as? EditText)?.requestFocus()
             return true
         }

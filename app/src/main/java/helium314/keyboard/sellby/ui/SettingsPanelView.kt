@@ -4,6 +4,7 @@ package helium314.keyboard.sellby.ui
 import android.content.Context
 import android.content.Intent
 import android.content.res.ColorStateList
+import android.content.res.Configuration
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Color
@@ -13,6 +14,9 @@ import android.graphics.Typeface
 import android.graphics.drawable.ColorDrawable
 import android.graphics.drawable.GradientDrawable
 import android.media.AudioManager
+import android.os.Handler
+import android.os.Looper
+import android.os.SystemClock
 import android.provider.ContactsContract
 import android.text.InputType
 import android.util.AttributeSet
@@ -33,7 +37,10 @@ import helium314.keyboard.keyboard.KeyboardSwitcher
 import helium314.keyboard.latin.R
 import helium314.keyboard.latin.settings.Defaults
 import helium314.keyboard.latin.settings.Settings
+import helium314.keyboard.latin.utils.FoldableUtils
 import helium314.keyboard.latin.utils.prefs
+import helium314.keyboard.sellby.companion.CompanionLauncher
+import helium314.keyboard.sellby.companion.tutorial.LessonId
 import helium314.keyboard.sellby.data.ExpeditionCatalog
 import helium314.keyboard.sellby.data.SellbyDatabase
 import helium314.keyboard.sellby.data.entity.Customer
@@ -44,12 +51,16 @@ import helium314.keyboard.sellby.input.enableSellbyRouting
 import helium314.keyboard.sellby.util.Channel
 import helium314.keyboard.sellby.util.ChannelMessenger
 import helium314.keyboard.sellby.util.IdentifierKind
+import helium314.keyboard.sellby.util.KeyboardSizeScale
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
+
+/** How often, at most, a drag of the "Ukuran keyboard" slider rebuilds the keyboard (see buildKeyboardSizeRow). */
+private const val SIZE_COMMIT_INTERVAL_MS = 60L
 
 /**
  * Settings panel content (tab "Settings" in SellbyToolbarView). Layout/spacing/icons/colors copied
@@ -103,6 +114,9 @@ class SettingsPanelView @JvmOverloads constructor(
         )),
         MenuSection("Keyboard", listOf(
             MenuItem("Atur Keyboard", R.drawable.ic_settings_keyboard_sellby, SettingsPanelView::buildAturKeyboardView),
+        )),
+        MenuSection("Tutorial", listOf(
+            MenuItem("Cara penggunaan", R.drawable.ic_settings_tutorial_sellby, SettingsPanelView::buildTutorialListView),
         )),
     )
 
@@ -172,6 +186,13 @@ class SettingsPanelView @JvmOverloads constructor(
         val section = sections.first { it.header == "Profil" }
         val item = section.items.first { it.label == "Metode Pembayaran" }
         showEntry(section, item)
+    }
+
+    /** Lands on Settings -> Tutorial (the list of lessons) - used when a lesson ends and the keyboard
+     *  comes back (see KeyboardSwitcher.endSellbyHelper). Same [showEntry] path as tapping the row. */
+    fun openTutorialListDirectly() {
+        val section = sections.first { it.header == "Tutorial" }
+        showEntry(section, section.items.first())
     }
 
     private fun dp(value: Float) = (value * resources.displayMetrics.density).toInt()
@@ -313,9 +334,14 @@ class SettingsPanelView @JvmOverloads constructor(
         }
     }
 
-    private fun buildSettingTile(section: MenuSection, item: MenuItem): View {
+    private fun buildSettingTile(section: MenuSection, item: MenuItem): View =
+        buildLinkTile(item.icon, item.label) { showEntry(section, item) }
+
+    /** One menu row: icon, bold label, right chevron and a divider below; [onClick] runs on tap. Shared by
+     *  the main menu and the Tutorial list so both look identical. */
+    private fun buildLinkTile(iconRes: Int, labelText: String, onClick: () -> Unit): View {
         val icon = ImageView(context).apply {
-            setImageResource(item.icon)
+            setImageResource(iconRes)
             setColorFilter(0xFF1E293B.toInt())
         }
         val iconBox = FrameLayout(context).apply {
@@ -323,7 +349,7 @@ class SettingsPanelView @JvmOverloads constructor(
             addView(icon, FrameLayout.LayoutParams(dp(20f), dp(20f), Gravity.CENTER))
         }
         val label = TextView(context).apply {
-            text = item.label
+            text = labelText
             textSize = 13f
             setTypeface(typeface, Typeface.BOLD)
             setTextColor(0xFF1E293B.toInt())
@@ -341,7 +367,7 @@ class SettingsPanelView @JvmOverloads constructor(
             setPadding(dp(6f), dp(11f), dp(6f), dp(11f))
             isClickable = true
             isFocusable = true
-            setOnClickListener { showEntry(section, item) }
+            setOnClickListener { onClick() }
             addView(iconBox)
             addView(label)
             addView(chevron)
@@ -354,6 +380,34 @@ class SettingsPanelView @JvmOverloads constructor(
             orientation = VERTICAL
             addView(row)
             addView(divider)
+        }
+    }
+
+    /** Settings -> Tutorial -> Cara penggunaan: the four stand-alone lessons. A tap opens that lesson as a
+     *  full page of the companion app (see CompanionLauncher.openTutorial - the tutorial is a full-screen
+     *  Compose UI, it can't live in this panel). The launch hides the keyboard; when the lesson ends the
+     *  user is back in the app they were typing in and the keyboard returns on this same list
+     *  (KeyboardSwitcher.beginSellbyHelper/endSellbyHelper). */
+    private fun buildTutorialListView(): View {
+        val list = LinearLayout(context).apply {
+            orientation = VERTICAL
+            setPadding(dp(18f), dp(12f), dp(18f), dp(12f))
+        }
+        listOf(
+            LessonId.Invoice to R.drawable.ic_toolbar_invoice_sellby,
+            LessonId.Status to R.drawable.ic_toolbar_status_sellby,
+            LessonId.Produk to R.drawable.ic_toolbar_produk_sellby,
+            LessonId.AutoText to R.drawable.ic_toolbar_autotext_sellby,
+        ).forEach { (lesson, icon) ->
+            list.addView(buildLinkTile(icon, lesson.title) {
+                // The lesson hides the keyboard; when it ends the keyboard comes back on THIS list.
+                KeyboardSwitcher.getInstance().beginSellbyHelper(KeyboardSwitcher.SellbyHelperReturn.SETTINGS_TUTORIAL_LIST)
+                CompanionLauncher.openTutorial(context, lesson)
+            })
+        }
+        return ScrollView(context).apply {
+            layoutParams = FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT)
+            addView(list)
         }
     }
 
@@ -412,6 +466,9 @@ class SettingsPanelView @JvmOverloads constructor(
         }
         CoroutineScope(Dispatchers.IO).launch {
             SellbyDatabase.getInstance(context.applicationContext).clearAllTables()
+            // The QRIS photos are plain files next to the database (QrisPhotoPickerActivity): "Hapus Semua Data"
+            // used to leave every one of them on the phone, and they are included in Auto Backup.
+            File(context.applicationContext.filesDir, "qris_photos").deleteRecursively()
         }
     }
 
@@ -2241,6 +2298,152 @@ class SettingsPanelView @JvmOverloads constructor(
         }
     }
 
+    /** A slider with [steps] + 1 discrete positions (0..[steps]). Same technique as the volume slider
+     *  above - the track is drawn with plain Views because MIUI's widget layer overrides SeekBar's own
+     *  progressDrawable, and the SeekBar on top only provides dragging and its round thumb - but kept
+     *  as its own helper so the volume slider stays exactly as it was. [onGrab] fires when a touch
+     *  starts, [onStep] on every user-driven change of position (drag or tap on the track). */
+    private fun buildStepSlider(
+        steps: Int,
+        initialProgress: Int,
+        onGrab: () -> Unit,
+        onRelease: () -> Unit,
+        onStep: (Int) -> Unit,
+    ): View {
+        val trackRadius = dp(4f).toFloat()
+        val trackBg = View(context).apply {
+            background = GradientDrawable().apply { cornerRadius = trackRadius; setColor(0xFFCBD5E1.toInt()) }
+        }
+        val trackFill = View(context).apply {
+            background = GradientDrawable().apply { cornerRadius = trackRadius; setColor(teal()) }
+            layoutParams = FrameLayout.LayoutParams(0, FrameLayout.LayoutParams.MATCH_PARENT)
+        }
+        val trackStack = FrameLayout(context).apply {
+            layoutParams = FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, dp(8f)).apply {
+                gravity = Gravity.CENTER_VERTICAL
+                marginStart = dp(12f); marginEnd = dp(12f)
+            }
+            addView(trackBg, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
+            addView(trackFill)
+        }
+        fun applyTrackFill(progress: Int) {
+            val totalWidth = trackStack.width
+            if (totalWidth <= 0) return
+            val lp = trackFill.layoutParams as FrameLayout.LayoutParams
+            val newWidth = (totalWidth * (progress / steps.toFloat())).toInt()
+            if (lp.width != newWidth) {
+                lp.width = newWidth
+                trackFill.layoutParams = lp
+            }
+        }
+        // Immediately once laid out (a drag must not trail a frame behind the thumb), deferred before that.
+        fun updateTrackFill(progress: Int) {
+            if (trackStack.width > 0) applyTrackFill(progress) else trackStack.post { applyTrackFill(progress) }
+        }
+        val seekBar = SeekBar(context).apply {
+            max = steps
+            progress = initialProgress
+            layoutParams = FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT)
+            progressDrawable = ColorDrawable(Color.TRANSPARENT)
+            thumbTintList = ColorStateList.valueOf(teal())
+            setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+                override fun onProgressChanged(bar: SeekBar?, progress: Int, fromUser: Boolean) {
+                    updateTrackFill(progress)
+                    if (fromUser) onStep(progress)
+                }
+                override fun onStartTrackingTouch(bar: SeekBar?) = onGrab()
+                override fun onStopTrackingTouch(bar: SeekBar?) = onRelease()
+            })
+        }
+        return FrameLayout(context).apply {
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+            addView(trackStack)
+            addView(seekBar)
+            doOnLayout { updateTrackFill(seekBar.progress) }
+        }
+    }
+
+    /** Settings -> Atur Keyboard -> "Ukuran keyboard": a continuous Pendek <-> Tinggi slider over the
+     *  keyboard height scale (see [KeyboardSizeScale]). The value is written to the pref and applied to
+     *  the keys while dragging - without hiding the keyboard window, which would close this panel (see
+     *  KeyboardSwitcher.applyKeyboardHeightLive) - so the keyboard grows/shrinks under the user's finger.
+     *  The slider has no steps, so a drag produces far more positions than the keyboard can be rebuilt
+     *  for (every pref write reloads the settings, then the keys are rebuilt): the latest position is
+     *  committed at most every [SIZE_COMMIT_INTERVAL_MS], and once more the moment the finger lifts.
+     *  [onGrab] is called when a drag starts; the caller uses it to scroll this row to the top of the
+     *  panel, because the panel above the keys gets shorter as the keys get taller and a row left near
+     *  the panel's bottom edge would slide out of view in the middle of the drag. */
+    private fun buildKeyboardSizeRow(onGrab: () -> Unit): View {
+        val isLandscape = context.resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+        val isFolded = FoldableUtils.isFolded
+        val prefs = context.prefs()
+        val prefKey = KeyboardSizeScale.prefKey(isLandscape, isFolded)
+        val label = TextView(context).apply {
+            text = "Ukuran keyboard"
+            textSize = 13f
+            setTypeface(typeface, Typeface.BOLD)
+            setTextColor(0xFF1E293B.toInt())
+            setPadding(dp(6f), dp(8f), dp(6f), dp(2f))
+        }
+        fun endLabel(value: String) = TextView(context).apply {
+            text = value
+            textSize = 11f
+            setTextColor(0xFF64748B.toInt())
+        }
+        val stored = KeyboardSizeScale.current(prefs, isLandscape, isFolded)
+        if (stored != KeyboardSizeScale.clamp(stored)) {
+            // Left over from an earlier, wider version of this slider (or the stock settings screen): bring
+            // the keyboard itself into the range too, so the thumb below and the keys agree.
+            prefs.edit { putFloat(prefKey, KeyboardSizeScale.clamp(stored)) }
+            KeyboardSwitcher.getInstance().applyKeyboardHeightLive()
+        }
+
+        val handler = Handler(Looper.getMainLooper())
+        var pendingScale: Float? = null
+        var lastCommitAt = 0L
+        val commit = object : Runnable {
+            override fun run() {
+                val scale = pendingScale ?: return
+                pendingScale = null
+                lastCommitAt = SystemClock.uptimeMillis()
+                prefs.edit { putFloat(prefKey, scale) }
+                KeyboardSwitcher.getInstance().applyKeyboardHeightLive()
+            }
+        }
+        val slider = buildStepSlider(
+            KeyboardSizeScale.STEPS,
+            KeyboardSizeScale.toProgress(KeyboardSizeScale.clamp(stored)),
+            onGrab,
+            onRelease = {
+                handler.removeCallbacks(commit)
+                commit.run()
+            },
+        ) { progress ->
+            pendingScale = KeyboardSizeScale.toScale(progress)
+            handler.removeCallbacks(commit)
+            val wait = (lastCommitAt + SIZE_COMMIT_INTERVAL_MS - SystemClock.uptimeMillis()).coerceAtLeast(0L)
+            handler.postDelayed(commit, wait)
+        }
+        val sliderRow = LinearLayout(context).apply {
+            orientation = HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(dp(6f), 0, dp(6f), dp(6f))
+            addView(endLabel("Pendek"))
+            addView(slider)
+            addView(endLabel("Tinggi"))
+        }
+        val divider = View(context).apply {
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(1f))
+            setBackgroundColor(0xFFE2E8F0.toInt())
+        }
+        return LinearLayout(context).apply {
+            orientation = VERTICAL
+            addView(label)
+            addView(sliderRow)
+            addView(divider)
+        }
+    }
+
     private fun buildAturKeyboardView(): View {
         val title = TextView(context).apply {
             text = "Atur Keyboard"; textSize = 13f; setTypeface(typeface, Typeface.BOLD); setTextColor(teal())
@@ -2251,10 +2454,22 @@ class SettingsPanelView @JvmOverloads constructor(
         val volumeRow = buildVolumeSliderRow().apply {
             visibility = if (soundOn) View.VISIBLE else View.GONE
         }
+        val scroll = ScrollView(context).apply {
+            layoutParams = FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT)
+        }
+        lateinit var sizeRow: View
+        sizeRow = buildKeyboardSizeRow(onGrab = {
+            val top = sizeRow.top
+            if (scroll.scrollY != top) scroll.smoothScrollTo(0, top)
+        })
         val list = LinearLayout(context).apply {
             orientation = VERTICAL
             setPadding(dp(18f), dp(10f), dp(18f), dp(10f))
             addView(title)
+            // First in the list on purpose (not last): the panel above the keys gets shorter as the keys
+            // get taller, so a row at the bottom of this list would slide out of view mid-drag - at the
+            // top, the row stays exactly where the user's finger is (see buildKeyboardSizeRow).
+            addView(sizeRow)
             // Reuses HeliBoard's own stock "key borders" theme toggle (AppearanceScreen.kt,
             // Settings.PREF_THEME_KEY_BORDERS) - draws a rounded-square outline around every key -
             // same "relocate an existing pref, invent no new mechanism" approach as the other
@@ -2273,9 +2488,7 @@ class SettingsPanelView @JvmOverloads constructor(
             addView(volumeRow)
             addView(buildKeyboardToggleRow("Spasi Setelah Tanda Baca", Settings.PREF_AUTOSPACE_AFTER_PUNCTUATION, Defaults.PREF_AUTOSPACE_AFTER_PUNCTUATION))
         }
-        return ScrollView(context).apply {
-            layoutParams = FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT)
-            addView(list)
-        }
+        scroll.addView(list)
+        return scroll
     }
 }

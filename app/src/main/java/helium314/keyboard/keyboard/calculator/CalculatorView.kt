@@ -20,10 +20,12 @@ import android.widget.TextView
 import androidx.core.content.ContextCompat
 import androidx.core.view.doOnLayout
 import androidx.core.widget.TextViewCompat
+import helium314.keyboard.event.HapticEvent
 import helium314.keyboard.keyboard.KeyboardActionListener
 import helium314.keyboard.keyboard.KeyboardSwitcher
 import helium314.keyboard.keyboard.internal.KeyVisualAttributes
 import helium314.keyboard.keyboard.internal.keyboard_parser.floris.KeyCode
+import helium314.keyboard.latin.AudioAndHapticFeedbackManager
 import helium314.keyboard.latin.R
 import helium314.keyboard.latin.common.ColorType
 import helium314.keyboard.latin.common.Constants
@@ -31,8 +33,6 @@ import helium314.keyboard.latin.settings.Settings
 import helium314.keyboard.latin.utils.ResourceUtils
 import helium314.keyboard.latin.utils.brightenOrDarken
 import helium314.keyboard.latin.utils.isDarkColor
-import java.util.Locale
-import kotlin.math.abs
 
 /**
  * Standalone calculator panel, shown in place of the main keyboard (same View-swap mechanism as
@@ -121,6 +121,7 @@ class CalculatorView @JvmOverloads constructor(
                     keyboardActionListener.onTextInput(result)
                 }
             }
+            withPressFeedback()
         }
 
         // All 4 rows are flat <LinearLayout> containers (calculator_view.xml) - every key, plain
@@ -130,16 +131,16 @@ class CalculatorView @JvmOverloads constructor(
         // keeping its own column - 5 columns per row now, not 6.
         val row1 = findViewById<LinearLayout>(R.id.calc_row1)
         if (row1.childCount == 0) {
-            listOf("1", "2", "3").forEach { row1.addView(createKey(it, keyTextColor)) }
+            CalculatorEngine.ROW1_KEYS.forEach { row1.addView(createKey(it, keyTextColor)) }
             row1.addView(buildAcKey())
             row1.addView(buildBackspaceKey(keyTextColor))
         }
-        buildRow(findViewById(R.id.calc_row2), listOf("4", "5", "6", "×", "÷"), keyTextColor)
-        buildRow(findViewById(R.id.calc_row3), listOf("7", "8", "9", "+", "−"), keyTextColor)
+        buildRow(findViewById(R.id.calc_row2), CalculatorEngine.ROW2_KEYS, keyTextColor)
+        buildRow(findViewById(R.id.calc_row3), CalculatorEngine.ROW3_KEYS, keyTextColor)
         val row4 = findViewById<LinearLayout>(R.id.calc_row4)
         if (row4.childCount == 0) {
             row4.addView(buildAbcCommaKey())
-            listOf("0", "000", "%").forEach { row4.addView(createKey(it, keyTextColor)) }
+            CalculatorEngine.ROW4_KEYS.forEach { row4.addView(createKey(it, keyTextColor)) }
             row4.addView(buildEqualsKey())
         }
 
@@ -155,6 +156,21 @@ class CalculatorView @JvmOverloads constructor(
         // is taller by its own top/bottom padding) after layout is enough to size every key
         // consistently.
         row1.doOnLayout { applyNumpadMatchingTextSize() }
+    }
+
+    /** Every key in this panel is a plain View (not a Key inside the KeyboardView), so none of them
+     *  went through PointerTracker - the code that gives the real keys their vibration and click
+     *  sound. That is why the Calculator was silent and still while everything else vibrated. This
+     *  gives them the same feedback (same manager, same "Getar saat disentuh"/"Suara Keyboard"
+     *  settings), triggered on touch DOWN like real keys, not after the finger lifts. The listener
+     *  returns false so clicks, long-clicks and the pressed state keep working as before. */
+    private fun View.withPressFeedback(code: Int = KeyCode.NOT_SPECIFIED) {
+        setOnTouchListener { v, event ->
+            if (event.actionMasked == MotionEvent.ACTION_DOWN) {
+                AudioAndHapticFeedbackManager.getInstance().performHapticAndAudioFeedback(code, v, HapticEvent.KEY_PRESS)
+            }
+            false
+        }
     }
 
     private fun applyNumpadMatchingTextSize() {
@@ -243,6 +259,7 @@ class CalculatorView @JvmOverloads constructor(
             background = keyDrawable(Settings.getValues().mColors.get(ColorType.FUNCTIONAL_KEY_BACKGROUND))
             layoutParams = standardKeyLayoutParams()
             setOnClickListener { onCalcKeyPress(label) }
+            withPressFeedback()
         }
     }
 
@@ -262,6 +279,7 @@ class CalculatorView @JvmOverloads constructor(
         // Internal dispatch key stays "C" (onCalcKeyPress's existing clear-all branch) - only
         // the displayed label changed to "AC", no business-logic change needed.
         setOnClickListener { onCalcKeyPress("C") }
+        withPressFeedback()
     }
 
     private fun buildBackspaceKey(keyTextColor: Int): TextView = TextView(context).apply {
@@ -300,9 +318,11 @@ class CalculatorView @JvmOverloads constructor(
             keyboardActionListener.onCodeInput(KeyCode.ALPHA, Constants.NOT_A_COORDINATE, Constants.NOT_A_COORDINATE, false)
         }
         setOnLongClickListener {
+            AudioAndHapticFeedbackManager.getInstance().performHapticFeedback(it, HapticEvent.KEY_LONG_PRESS)
             onCalcKeyPress(",")
             true
         }
+        withPressFeedback()
     }
 
     private fun buildEqualsKey(): TextView = TextView(context).apply {
@@ -320,6 +340,7 @@ class CalculatorView @JvmOverloads constructor(
         background = keyDrawable(accentColor)
         layoutParams = standardKeyLayoutParams()
         setOnClickListener { onCalcKeyPress("=") }
+        withPressFeedback(Constants.CODE_ENTER)
     }
 
     private fun setupBackspaceRepeat(view: TextView) {
@@ -327,9 +348,12 @@ class CalculatorView @JvmOverloads constructor(
             when (event.action) {
                 MotionEvent.ACTION_DOWN -> {
                     v.isPressed = true
+                    AudioAndHapticFeedbackManager.getInstance().performHapticAndAudioFeedback(KeyCode.DELETE, v, HapticEvent.KEY_PRESS)
                     onCalcKeyPress("DEL")
                     val runnable = object : Runnable {
                         override fun run() {
+                            // Repeats vibrate (like holding the real backspace) but don't re-play the click.
+                            AudioAndHapticFeedbackManager.getInstance().performHapticFeedback(v, HapticEvent.KEY_REPEAT)
                             onCalcKeyPress("DEL")
                             handler.postDelayed(this, 70)
                         }
@@ -374,7 +398,10 @@ class CalculatorView @JvmOverloads constructor(
     // Key press state machine, ported from sellby_keyboard.dart's _onCalcKeyPress (line ~676)
     // ---------------------------------------------------------------------------------------
 
-    private fun onCalcKeyPress(key: String) {
+    private fun onCalcKeyPress(pressedKey: String) {
+        // The minus key is labelled "−" (typographic minus) but the whole state machine below speaks the
+        // ASCII "-": unmapped, that key fell through to the digit branch and "680 − 670" gave 680.
+        val key = CalculatorEngine.normalizeKey(pressedKey)
         when {
             key == "C" -> {
                 expression = ""
@@ -440,208 +467,12 @@ class CalculatorView @JvmOverloads constructor(
         updateDisplay()
     }
 
-    private fun getCurrentNumberSegment(expr: String): String {
-        if (expr.isEmpty()) return ""
-        var lastOp = -1
-        for (i in expr.length - 1 downTo 0) {
-            if (expr[i] in "+-×÷()") { lastOp = i; break }
-        }
-        return if (lastOp == -1) expr else expr.substring(lastOp + 1)
-    }
+    // The pure math lives in CalculatorEngine (unit tested); these keep the call sites above short.
+    private fun getCurrentNumberSegment(expr: String) = CalculatorEngine.getCurrentNumberSegment(expr)
 
-    /** Adds "." thousand separators / "," decimal separator to the live expression display, ported from _formatExpressionString */
-    private fun formatExpressionString(expr: String): String {
-        if (expr.isEmpty()) return ""
-        val buffer = StringBuilder()
-        var currentNum = StringBuilder()
-        fun flushNumber() {
-            if (currentNum.isNotEmpty()) {
-                val clean = currentNum.toString().replace(".", "")
-                if (clean.contains(",")) {
-                    val parts = clean.split(",", limit = 2)
-                    buffer.append(addThousandSeparators(parts[0])).append(",").append(parts.getOrElse(1) { "" })
-                } else {
-                    buffer.append(addThousandSeparators(clean))
-                }
-                currentNum = StringBuilder()
-            }
-        }
-        for (c in expr) {
-            when {
-                c.isDigit() || c == ',' -> currentNum.append(c)
-                c == '.' -> continue
-                else -> { flushNumber(); buffer.append(c) }
-            }
-        }
-        flushNumber()
-        return buffer.toString()
-    }
-
-    private fun addThousandSeparators(intStr: String): String {
-        val sb = StringBuilder()
-        var count = 0
-        for (i in intStr.length - 1 downTo 0) {
-            sb.append(intStr[i])
-            count++
-            if (count == 3 && i != 0) { sb.append('.'); count = 0 }
-        }
-        return sb.reverse().toString()
-    }
-
-    // ---------------------------------------------------------------------------------------
-    // Expression evaluator, ported from sellby_keyboard.dart's _calculateExpression/_evalMath/
-    // _evalSubMath/_parseTokenValue/_formatResult (line ~840-1057)
-    // ---------------------------------------------------------------------------------------
+    private fun formatExpressionString(expr: String) = CalculatorEngine.formatExpressionString(expr)
 
     private fun calculateExpression() {
-        if (expression.isEmpty()) {
-            result = "0"
-            return
-        }
-        result = try {
-            var cleanExpr = expression
-                .replace("×", "*")
-                .replace("÷", "/")
-                .replace(".", "")
-                .replace(",", ".")
-            val openCount = cleanExpr.count { it == '(' }
-            val closeCount = cleanExpr.count { it == ')' }
-            if (openCount > closeCount) cleanExpr += ")".repeat(openCount - closeCount)
-            formatResult(evalMath(cleanExpr))
-        } catch (e: Exception) {
-            "..."
-        }
-    }
-
-    private fun evalMath(expr0: String): Double {
-        var expr = expr0.replace(" ", "")
-        if (expr.isEmpty()) return 0.0
-        expr = Regex("(\\d)\\(").replace(expr) { "${it.groupValues[1]}*(" }
-        expr = Regex("\\)(\\d)").replace(expr) { ")*${it.groupValues[1]}" }
-        expr = expr.replace(")(", ")*(")
-
-        var guard = 0
-        while (expr.contains("(") && guard < 30) {
-            guard++
-            val match = Regex("\\(([^()]+)\\)").find(expr) ?: break
-            val value = evalSubMath(match.groupValues[1])
-            expr = expr.replaceRange(match.range, value.toString())
-        }
-        return evalSubMath(expr)
-    }
-
-    private fun evalSubMath(expr: String): Double {
-        if (expr.isEmpty()) return 0.0
-        val tokens = mutableListOf<String>()
-        var idx = 0
-        while (idx < expr.length) {
-            val c = expr[idx]
-            if (c == '-' && (tokens.isEmpty() || tokens.last() in listOf("+", "-", "*", "/"))) {
-                val sb = StringBuilder("-")
-                idx++
-                while (idx < expr.length && (expr[idx].isDigit() || expr[idx] == '.')) { sb.append(expr[idx]); idx++ }
-                if (idx < expr.length && expr[idx] == '%') { sb.append('%'); idx++ }
-                tokens.add(sb.toString())
-                continue
-            }
-            if (c.isDigit() || c == '.') {
-                val sb = StringBuilder()
-                while (idx < expr.length && (expr[idx].isDigit() || expr[idx] == '.')) { sb.append(expr[idx]); idx++ }
-                if (idx < expr.length && expr[idx] == '%') { sb.append('%'); idx++ }
-                tokens.add(sb.toString())
-                continue
-            }
-            if (c == '%') {
-                if (tokens.isNotEmpty() && !tokens.last().endsWith("%")) tokens[tokens.size - 1] = tokens.last() + "%"
-                idx++
-                continue
-            }
-            if (c == '+' || c == '-' || c == '*' || c == '/') {
-                tokens.add(c.toString())
-                idx++
-                continue
-            }
-            idx++
-        }
-        if (tokens.isEmpty()) return 0.0
-        if (tokens.last() in listOf("+", "-", "*", "/")) tokens.removeAt(tokens.size - 1)
-        if (tokens.isEmpty()) return 0.0
-
-        val pass1 = mutableListOf<String>()
-        var p = 0
-        while (p < tokens.size) {
-            if (tokens[p] == "*" || tokens[p] == "/") {
-                val op = tokens[p]
-                val prevVal = parseTokenValue(pass1.removeAt(pass1.size - 1))
-                val nextStr = if (p + 1 < tokens.size) tokens[p + 1] else "1"
-                val nextVal = parseTokenValue(nextStr)
-                val res = if (op == "*") prevVal * nextVal
-                    else {
-                        if (nextVal == 0.0) return Double.NaN
-                        prevVal / nextVal
-                    }
-                pass1.add(res.toString())
-                p += 2
-            } else {
-                pass1.add(tokens[p])
-                p++
-            }
-        }
-        if (pass1.isEmpty()) return 0.0
-
-        var current = parseTokenValue(pass1[0])
-        var q = 1
-        while (q < pass1.size) {
-            val op = pass1[q]
-            val nextToken = if (q + 1 < pass1.size) pass1[q + 1] else "0"
-            if (nextToken.endsWith("%")) {
-                val pctFactor = (nextToken.removeSuffix("%").toDoubleOrNull() ?: 0.0) / 100.0
-                val amount = current * pctFactor
-                if (op == "+") current += amount
-                if (op == "-") current -= amount
-            } else {
-                val v = nextToken.toDoubleOrNull() ?: 0.0
-                if (op == "+") current += v
-                if (op == "-") current -= v
-            }
-            q += 2
-        }
-        return current
-    }
-
-    private fun parseTokenValue(token: String): Double {
-        if (token.endsWith("%")) return (token.removeSuffix("%").toDoubleOrNull() ?: 0.0) / 100.0
-        return token.toDoubleOrNull() ?: 0.0
-    }
-
-    private fun formatResult(value: Double): String {
-        if (value.isNaN() || value.isInfinite()) return "Error"
-        val isNegative = value < 0
-        val absValue = abs(value)
-
-        if (absValue >= 1e15) {
-            val expStr = String.format(Locale.US, "%.6e", absValue)
-            val parts = expStr.split("e")
-            val mantissa = parts[0].trimEnd('0').trimEnd('.')
-            val exponent = parts[1].toInt()
-            return (if (isNegative) "-" else "") + mantissa + "e" + exponent
-        }
-
-        if (absValue % 1.0 == 0.0) {
-            val formatted = addThousandSeparators(absValue.toLong().toString())
-            return if (isNegative) "-$formatted" else formatted
-        }
-
-        var rawFixed = String.format(Locale.US, "%.8f", absValue)
-        if (rawFixed.contains(".")) rawFixed = rawFixed.trimEnd('0').trimEnd('.')
-
-        return if (rawFixed.contains(".")) {
-            val parts = rawFixed.split(".")
-            val formatted = "${addThousandSeparators(parts[0])},${parts[1]}"
-            if (isNegative) "-$formatted" else formatted
-        } else {
-            val formatted = addThousandSeparators(rawFixed)
-            if (isNegative) "-$formatted" else formatted
-        }
+        result = CalculatorEngine.evaluate(expression)
     }
 }

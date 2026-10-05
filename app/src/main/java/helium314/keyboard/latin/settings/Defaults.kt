@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-3.0-only
 package helium314.keyboard.latin.settings
 
 import android.annotation.SuppressLint
@@ -58,7 +59,11 @@ object Defaults {
     const val PREF_TOOLBAR_CUSTOM_KEY_CODES = ""
     const val PREF_AUTO_CAP = true
     const val PREF_VIBRATE_ON = false
-    const val PREF_VIBRATE_IN_DND_MODE = false
+    // Sellby: default ON. Do Not Disturb silences notifications, not touch haptics (the system keeps
+    // vibrating for touch feedback in DND), and Sellby's settings panel has no switch for this - so
+    // with the stock default of false, a phone in DND (or one whose DND state went stale, see
+    // AudioAndHapticFeedbackManager) lost keyboard vibration with no way to get it back.
+    const val PREF_VIBRATE_IN_DND_MODE = true
     const val PREF_SOUND_ON = false
     const val PREF_SUGGEST_EMOJIS = true
     const val PREF_INLINE_EMOJI_SEARCH = true
