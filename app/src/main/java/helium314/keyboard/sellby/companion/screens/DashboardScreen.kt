@@ -183,6 +183,15 @@ fun DashboardScreen(onExit: () -> Unit, onDataReset: () -> Unit, onReplayTutoria
     var endMillis by remember { mutableStateOf(startOfDay(System.currentTimeMillis())) }
     var showDatePicker by remember { mutableStateOf(false) }
     var showFaq by remember { mutableStateOf(false) }
+    var supportExpanded by remember { mutableStateOf(false) }
+    val dashboardScroll = rememberScrollState()
+    // Opening the Support card makes the page longer: bring the opened card fully into view.
+    LaunchedEffect(supportExpanded) {
+        if (supportExpanded) {
+            delay(260)
+            dashboardScroll.animateScrollTo(dashboardScroll.maxValue)
+        }
+    }
     var showDataTransaksi by remember { mutableStateOf(false) }
     var showDataPelanggan by remember { mutableStateOf(false) }
     var testKeyboardText by remember { mutableStateOf("") }
@@ -247,8 +256,14 @@ fun DashboardScreen(onExit: () -> Unit, onDataReset: () -> Unit, onReplayTutoria
             }
         }
 
-        // Scrollable rest of the dashboard - takes all remaining vertical space.
-        Column(Modifier.weight(1f).verticalScroll(rememberScrollState())) {
+        // Scrollable rest of the dashboard - takes all remaining vertical space. The content is at least as tall as that
+        // space (heightIn min), which gives the weighted Spacer before the Support card something to fill: when everything
+        // fits on the screen the card sits at the bottom, just like Flutter's flexible Spacer(); when it does not fit,
+        // the page scrolls as before. (Compose gives a weighted child the Column's MINIMUM height when the maximum is
+        // unbounded, which is the case inside verticalScroll.)
+        BoxWithConstraints(Modifier.weight(1f)) {
+        val viewportHeight = maxHeight
+        Column(Modifier.verticalScroll(dashboardScroll).heightIn(min = viewportHeight)) {
             StatCardsRow(curStats, growth, hasData, dateRangeLabel(startMillis, endMillis))
             Spacer(Modifier.height(10.dp))
             StatusStrip(curStats)
@@ -270,16 +285,20 @@ fun DashboardScreen(onExit: () -> Unit, onDataReset: () -> Unit, onReplayTutoria
             )
             Spacer(Modifier.height(10.dp))
             KeyboardActivationSection()
-            Spacer(Modifier.height(24.dp)) // fixed stand-in for Flutter's flexible Spacer()
+            Spacer(Modifier.height(24.dp))
+            Spacer(Modifier.weight(1f)) // flexible: pushes the Support card to the bottom when the page is short
             SupportFaqCard(
+                expanded = supportExpanded,
+                onToggle = { supportExpanded = !supportExpanded },
                 onFaqClick = { showFaq = true },
                 onTutorialClick = onReplayTutorial,
                 onSupportClick = { contactSupport(context) },
                 onAboutClick = onOpenAbout,
             )
-            Spacer(Modifier.height(24.dp))
+            Spacer(Modifier.height(8.dp))
             // Keep the last card clear of the phone's own back/home buttons (the page is drawn edge-to-edge).
             Spacer(Modifier.windowInsetsBottomHeight(WindowInsets.navigationBars))
+        }
         }
     }
 
@@ -770,34 +789,67 @@ private fun KeyboardActivationBanner(isActive: Boolean, onToggleClick: () -> Uni
     }
 }
 
+/** The bottom card: closed it is only its title and a chevron (a short strip), a tap opens the four links and the short
+ *  explanation. Closed by default, so the dashboard stays calm and the card never gets in the way of the phone's own
+ *  back/home buttons. */
 @Composable
-private fun SupportFaqCard(onFaqClick: () -> Unit, onTutorialClick: () -> Unit, onSupportClick: () -> Unit, onAboutClick: () -> Unit) {
-    // Left: the title and three close-together links of equal height (labels line up in one column, the
-    // icons sit centred in a fixed-width slot); right: the explanation, its last line level with the
-    // bottom link ("Hubungi Dukungan") - hence the Bottom alignment.
-    Row(
+private fun SupportFaqCard(
+    expanded: Boolean,
+    onToggle: () -> Unit,
+    onFaqClick: () -> Unit,
+    onTutorialClick: () -> Unit,
+    onSupportClick: () -> Unit,
+    onAboutClick: () -> Unit,
+) {
+    val chevronAngle by animateFloatAsState(if (expanded) 180f else 0f, label = "supportChevron")
+    Column(
         Modifier.fillMaxWidth().padding(horizontal = 18.dp).clip(RoundedCornerShape(22.dp))
-            .background(SellbyColors.SupportCardBg).padding(horizontal = 18.dp, vertical = 16.dp),
-        verticalAlignment = Alignment.Bottom,
+            .background(SellbyColors.SupportCardBg),
     ) {
-        Column {
-            Text("Support & FAQs", color = SellbyColors.White, fontSize = 13.5.sp, fontWeight = FontWeight.Bold)
-            Spacer(Modifier.height(6.dp))
-            SupportLink("?", "Cari FAQs", onFaqClick)
-            SupportLink("▶", "Lihat Tutorial", onTutorialClick, iconSize = 9.sp)
-            SupportLink("✉", "Hubungi Dukungan", onSupportClick)
-            SupportLink("i", "Tentang & Lisensi", onAboutClick)
+        Row(
+            Modifier.fillMaxWidth().clickable { onToggle() }.padding(horizontal = 18.dp, vertical = 16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                "Support & FAQs",
+                modifier = Modifier.weight(1f),
+                color = SellbyColors.White,
+                fontSize = 13.5.sp,
+                fontWeight = FontWeight.Bold,
+            )
+            Image(
+                painter = painterResource(R.drawable.ic_settings_chevron_down_sellby),
+                contentDescription = if (expanded) "Tutup Support & FAQs" else "Buka Support & FAQs",
+                colorFilter = ColorFilter.tint(SellbyColors.White.copy(alpha = 0.8f)),
+                modifier = Modifier.size(20.dp).rotate(chevronAngle),
+            )
         }
-        Spacer(Modifier.width(22.dp))
-        Text(
-            "Semua settingan berada di keyboard, dashboard ini hanya untuk menampilkan summary dan juga aktif/nonaktifkan keyboard",
-            color = SellbyColors.White.copy(alpha = 0.7f),
-            fontSize = 10.5.sp,
-            lineHeight = 15.sp,
-            // The link beside it centres its 11.5sp label in a 28dp row; this bottom padding puts the
-            // paragraph's last line on that same baseline.
-            modifier = Modifier.weight(1f).padding(bottom = 6.dp),
-        )
+        AnimatedVisibility(visible = expanded) {
+            // Left: the four close-together links of equal height (labels line up in one column, the icons sit centred
+            // in a fixed-width slot); right: the explanation, its last line level with the bottom link - hence the
+            // Bottom alignment.
+            Row(
+                Modifier.fillMaxWidth().padding(start = 18.dp, end = 18.dp, bottom = 16.dp),
+                verticalAlignment = Alignment.Bottom,
+            ) {
+                Column {
+                    SupportLink("?", "Cari FAQs", onFaqClick)
+                    SupportLink("▶", "Lihat Tutorial", onTutorialClick, iconSize = 9.sp)
+                    SupportLink("✉", "Hubungi Dukungan", onSupportClick)
+                    SupportLink("i", "Tentang & Lisensi", onAboutClick)
+                }
+                Spacer(Modifier.width(22.dp))
+                Text(
+                    "Semua settingan berada di keyboard, dashboard ini hanya untuk menampilkan summary dan juga aktif/nonaktifkan keyboard",
+                    color = SellbyColors.White.copy(alpha = 0.7f),
+                    fontSize = 10.5.sp,
+                    lineHeight = 15.sp,
+                    // The link beside it centres its 11.5sp label in a 28dp row; this bottom padding puts the
+                    // paragraph's last line on that same baseline.
+                    modifier = Modifier.weight(1f).padding(bottom = 6.dp),
+                )
+            }
+        }
     }
 }
 
