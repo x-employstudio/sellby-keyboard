@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package helium314.keyboard.sellby.ui
 
+import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
 import android.graphics.Color
@@ -265,13 +266,13 @@ class OngkirPanelView @JvmOverloads constructor(
     }
 
     private fun launchRegularWebsite(item: ExpeditionCatalogItem) {
+        // No resolveActivity() pre-check: since Android 11 it returns null for an intent whose handler is not declared in
+        // the manifest's <queries>, even when a browser exists (that was "Tidak dapat membuka situs cek ongkir" on every
+        // phone). startActivity() itself needs no package visibility; it throws only when there is truly no browser.
         try {
-            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(item.webUrl)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            if (intent.resolveActivity(context.packageManager) == null) {
-                showToast("Tidak dapat membuka situs cek ongkir ${item.displayName}")
-                return
-            }
-            context.startActivity(intent)
+            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(item.webUrl)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+        } catch (_: ActivityNotFoundException) {
+            showToast("Tidak dapat membuka situs cek ongkir ${item.displayName}")
         } catch (_: Exception) {
             showToast("Gagal membuka browser untuk ${item.displayName}")
         }
