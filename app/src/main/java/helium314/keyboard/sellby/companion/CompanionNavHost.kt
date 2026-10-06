@@ -36,8 +36,6 @@ private object Routes {
     const val PURCHASE = "purchase"
     /** Purchase opened from the keyboard because a locked tab was tapped: "Kembali" closes the app. */
     const val PURCHASE_LOCKED = "purchase_locked"
-    /** Purchase opened from "Tentang & Lisensi" (also while the trial is running): "Kembali" goes back there. */
-    const val PURCHASE_FROM_ABOUT = "purchase_from_about"
     const val DASHBOARD = "dashboard"
     /** "Tentang & Lisensi", opened from the Dashboard's Support card. */
     const val ABOUT = "about"
@@ -179,13 +177,7 @@ fun CompanionNavHost(startAtPurchase: Boolean = false, startLesson: LessonId? = 
             )
         }
         composable(Routes.ABOUT) {
-            AboutScreen(
-                onBack = { navController.popBackStack() },
-                onOpenPurchase = { navController.navigate(Routes.PURCHASE_FROM_ABOUT) },
-            )
-        }
-        composable(Routes.PURCHASE_FROM_ABOUT) {
-            PurchaseScreen(onContinue = { navController.popBackStack() }, cameFromLockedFeature = true)
+            AboutScreen(onBack = { navController.popBackStack() })
         }
     }
 }

@@ -6,6 +6,8 @@ import android.content.Intent
 import android.content.SharedPreferences
 import android.net.Uri
 import android.view.inputmethod.InputMethodManager
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -27,11 +29,13 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.windowInsetsBottomHeight
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -59,6 +63,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Brush
@@ -95,6 +100,7 @@ import helium314.keyboard.latin.utils.prefs
 import helium314.keyboard.sellby.companion.PREF_ONBOARDING_COMPLETED
 import helium314.keyboard.sellby.companion.PREF_STORE_NAME
 import helium314.keyboard.sellby.companion.SellbyLinks
+import helium314.keyboard.sellby.companion.components.NavigationBarIcons
 import helium314.keyboard.sellby.companion.review.ReviewPrompter
 import helium314.keyboard.sellby.companion.theme.SellbyColors
 import helium314.keyboard.sellby.data.SellbyDatabase
@@ -138,6 +144,7 @@ private val GREETING_CARD_HEIGHT = 123.dp
 fun DashboardScreen(onExit: () -> Unit, onDataReset: () -> Unit, onReplayTutorial: () -> Unit, onOpenAbout: () -> Unit) {
     val context = LocalContext.current
     BackHandler { onExit() }
+    NavigationBarIcons(darkIcons = true) // light page: dark gray back/home buttons, visible on any phone theme
     var showTestKeyboardPopup by remember { mutableStateOf(false) }
     // Takes priority over the plain BackHandler above while the popup is open - Compose dispatches
     // back events to the most recently composed *enabled* handler first, so this closes just the
@@ -271,6 +278,8 @@ fun DashboardScreen(onExit: () -> Unit, onDataReset: () -> Unit, onReplayTutoria
                 onAboutClick = onOpenAbout,
             )
             Spacer(Modifier.height(24.dp))
+            // Keep the last card clear of the phone's own back/home buttons (the page is drawn edge-to-edge).
+            Spacer(Modifier.windowInsetsBottomHeight(WindowInsets.navigationBars))
         }
     }
 
@@ -807,21 +816,79 @@ private fun SupportLink(icon: String, label: String, onClick: () -> Unit, iconSi
     }
 }
 
+private data class FaqItem(val question: String, val answer: String)
+
+private val FAQ_ITEMS = listOf(
+    FaqItem(
+        "Bagaimana cara mengaktifkan keyboard Sellby?",
+        "Tekan tombol Aktifkan di bagian atas, lalu centang Sellby Keyboard di pengaturan bahasa & masukan HP Anda.",
+    ),
+    FaqItem(
+        "Di mana mengatur template invoice dan produk?",
+        "Buka keyboard Sellby di aplikasi chat apa saja, lalu tekan ikon Pengaturan di bar atas keyboard.",
+    ),
+    FaqItem(
+        "Bagaimana setelah masa coba 3 hari habis?",
+        "Fitur panel dibuka dengan sekali bayar lewat Google Play, tanpa langganan. Beli lewat menu Pengaturan di keyboard (Beli Premium). " +
+            "Kalau sebelumnya sudah membeli (misalnya setelah ganti HP atau pasang ulang), buka halaman pembelian lalu ketuk Pulihkan pembelian.",
+    ),
+    FaqItem(
+        "Apakah teks yang saya ketik dikirim ke server?",
+        "Tidak. Teks diproses hanya di HP kamu, dan data toko disimpan di HP kamu.",
+    ),
+)
+
+/** The FAQ as an accordion: every question is a row with a chevron; tapping it opens the full answer below it (one at
+ *  a time) and turns the chevron up. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun FaqBottomSheet(onDismiss: () -> Unit) {
+    var openIndex by remember { mutableStateOf<Int?>(null) }
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState()) {
         Column(Modifier.verticalScroll(rememberScrollState()).padding(horizontal = 24.dp).padding(bottom = 20.dp)) {
             Text("Pertanyaan Umum (FAQs)", fontSize = 18.sp, fontWeight = FontWeight.ExtraBold, color = SellbyColors.TextDark)
-            Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(8.dp))
+            FAQ_ITEMS.forEachIndexed { index, item ->
+                FaqRow(item, expanded = openIndex == index) { openIndex = if (openIndex == index) null else index }
+            }
+            Spacer(Modifier.windowInsetsBottomHeight(WindowInsets.navigationBars))
+        }
+    }
+}
+
+@Composable
+private fun FaqRow(item: FaqItem, expanded: Boolean, onToggle: () -> Unit) {
+    val chevronAngle by animateFloatAsState(if (expanded) 180f else 0f, label = "faqChevron")
+    Column(Modifier.fillMaxWidth()) {
+        Row(
+            Modifier.fillMaxWidth().clickable { onToggle() }.padding(vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
             Text(
-                "1. Bagaimana cara mengaktifkan keyboard Sellby?\nTekan tombol Aktifkan di bagian atas, lalu centang Sellby Keyboard di pengaturan bahasa & masukan HP Anda.\n\n" +
-                    "2. Di mana mengatur template invoice dan produk?\nBuka keyboard Sellby di aplikasi chat apa saja, lalu tekan ikon Pengaturan di bar atas keyboard.\n\n" +
-                    "3. Bagaimana setelah masa coba 3 hari habis?\nFitur panel dibuka dengan sekali bayar lewat Google Play, tanpa langganan. Kalau sebelumnya sudah membeli (misalnya setelah ganti HP atau pasang ulang), buka halaman pembelian lalu ketuk Pulihkan pembelian.\n\n" +
-                    "4. Apakah teks yang saya ketik dikirim ke server?\nTidak. Teks diproses hanya di HP kamu, dan data toko disimpan di HP kamu.",
-                fontSize = 13.sp, color = Color(0xFF475569), lineHeight = 18.85.sp,
+                item.question,
+                modifier = Modifier.weight(1f),
+                fontSize = 14.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = SellbyColors.TextDark,
+            )
+            Spacer(Modifier.width(12.dp))
+            Image(
+                painter = painterResource(R.drawable.ic_settings_chevron_down_sellby),
+                contentDescription = if (expanded) "Tutup jawaban" else "Buka jawaban",
+                colorFilter = ColorFilter.tint(SellbyColors.TextMuted),
+                modifier = Modifier.size(20.dp).rotate(chevronAngle),
             )
         }
+        AnimatedVisibility(visible = expanded) {
+            Text(
+                item.answer,
+                modifier = Modifier.padding(bottom = 14.dp),
+                fontSize = 13.sp,
+                color = Color(0xFF475569),
+                lineHeight = 18.85.sp,
+            )
+        }
+        Box(Modifier.fillMaxWidth().height(1.dp).background(SellbyColors.SurfaceMuted))
     }
 }
 

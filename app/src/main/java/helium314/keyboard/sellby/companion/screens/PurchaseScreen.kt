@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.rememberScrollState
@@ -48,6 +49,7 @@ import helium314.keyboard.latin.R
 import helium314.keyboard.latin.utils.prefs
 import helium314.keyboard.sellby.companion.PREF_ONBOARDING_COMPLETED
 import helium314.keyboard.sellby.companion.billing.BillingRepository
+import helium314.keyboard.sellby.companion.components.NavigationBarIcons
 import helium314.keyboard.sellby.companion.billing.LaunchResult
 import helium314.keyboard.sellby.companion.billing.ProductState
 import helium314.keyboard.sellby.companion.theme.SellbyColors
@@ -80,6 +82,7 @@ private val BillingLimeGreen = Color(0xFF8CE623)
 @Composable
 fun PurchaseScreen(onContinue: () -> Unit, cameFromLockedFeature: Boolean = false) {
     val context = LocalContext.current
+    NavigationBarIcons(darkIcons = false) // dark navy page: light back/home buttons
     val repository = remember { BillingRepository.get(context) }
     val state by repository.state.collectAsState()
     val scope = rememberCoroutineScope()
@@ -255,7 +258,7 @@ fun PurchaseScreen(onContinue: () -> Unit, cameFromLockedFeature: Boolean = fals
             },
             shape = RoundedCornerShape(30.dp),
             color = SellbyColors.White,
-            modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 28.dp).fillMaxWidth(0.62f),
+            modifier = Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(bottom = 28.dp).fillMaxWidth(0.62f),
         ) {
             Text(
                 if (cameFromLockedFeature) "Kembali" else "Lanjutkan ke dashboard",

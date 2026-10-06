@@ -17,17 +17,19 @@ How to review:
 3. Use the toolbar above the keys to open the panels (Invoice, Ongkir, Status, Produk, Auto-Text).
 
 After the 3-day trial the panel features are locked and a one-time in-app purchase (product id: sellby_premium) unlocks them. If the trial has already ended on your test device (for example because the same device or Google account reviewed an earlier build), redeem this promo code in Google Play: <KODE_PROMO>
-Then open Sellby > Dashboard > Support & FAQs > "Tentang & Lisensi" > Premium > "Beli Premium / Pulihkan pembelian" and tap "Pulihkan pembelian".
+Then open the keyboard's Settings (gear icon) > "Beli Premium" > "Pulihkan pembelian" (the purchase screen).
 
 Support: x.employstudio@gmail.com
 ```
 
 Ganti `<KODE_PROMO>` dengan kode yang dibuat di Monetize with Play > Promo codes (produk `sellby_premium`, masa berlaku cukup panjang). Perbarui kode ini bila kedaluwarsa.
 
-## Versi singkat (kolom dibatasi 500 karakter; muat dengan kode promo sampai 20 karakter)
+## Versi singkat (kolom dibatasi 500 karakter)
+
+Sejak build 5004 tombol beli ada di Settings keyboard (ikon gerigi > Beli Premium), bukan di Tentang & Lisensi.
 
 ```
-No sign-in needed. All features are open during a free 3-day in-app trial (starts when you first tap a keyboard toolbar tab), no payment. Install, open Sellby, finish onboarding (any store info), enable and select Sellby Keyboard (Settings > System > Languages & input), then use the toolbar panels. If the trial already ended on your device, redeem promo code <KODE_PROMO> in Google Play, then Sellby > Dashboard > Tentang & Lisensi > Premium > Pulihkan pembelian.
+No sign-in needed. All features are open during a free 3-day in-app trial (starts when you first tap a keyboard toolbar tab), no payment. Install, open Sellby, finish onboarding (any store info), enable and select Sellby Keyboard (Settings > System > Languages & input), then use the toolbar panels. If the trial already ended on your device, redeem promo code <KODE_PROMO> in Google Play, then keyboard Settings (gear) > Beli Premium > Pulihkan pembelian.
 ```
 
-Nama set instruksi: `No login required` (username dan password dikosongkan). Centang "Sign in details ... provide full access to all the features, including premium or paid content" HANYA setelah kode promo yang berlaku sudah ada di teks.
+Ganti `<KODE_PROMO>` dengan `KODE1 or KODE2`. Nama set instruksi: `No login required`. Kotak "full access" dicentang.

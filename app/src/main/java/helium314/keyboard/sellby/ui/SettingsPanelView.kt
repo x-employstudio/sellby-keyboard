@@ -40,6 +40,8 @@ import helium314.keyboard.latin.settings.Settings
 import helium314.keyboard.latin.utils.FoldableUtils
 import helium314.keyboard.latin.utils.prefs
 import helium314.keyboard.sellby.companion.CompanionLauncher
+import helium314.keyboard.sellby.companion.TrialPolicy
+import helium314.keyboard.sellby.companion.TrialState
 import helium314.keyboard.sellby.companion.tutorial.LessonId
 import helium314.keyboard.sellby.data.ExpeditionCatalog
 import helium314.keyboard.sellby.data.SellbyDatabase
@@ -302,6 +304,12 @@ class SettingsPanelView @JvmOverloads constructor(
             orientation = VERTICAL
             setPadding(dp(18f), dp(12f), dp(18f), dp(12f))
         }
+        // The purchase entry: first thing in Settings, deliberately unlike the plain rows below, and gone once premium is on
+        // (the menu is rebuilt every time it is shown, so it disappears after a purchase without any extra wiring).
+        if (TrialPolicy.state(context) !is TrialState.Premium) {
+            list.addView(buildPremiumRow())
+            list.addView(View(context).apply { layoutParams = LinearLayout.LayoutParams(0, dp(16f)) })
+        }
         sections.forEachIndexed { index, section ->
             if (index > 0) list.addView(View(context).apply { layoutParams = LinearLayout.LayoutParams(0, dp(16f)) })
             list.addView(buildSectionHeader(section.header))
@@ -312,6 +320,54 @@ class SettingsPanelView @JvmOverloads constructor(
         return ScrollView(context).apply {
             layoutParams = FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT)
             addView(list)
+        }
+    }
+
+    /** "Beli Premium": a blue gradient card (the same blues as the purchase page) with the premium seal, a title, a one
+     *  line promise and a chevron. A tap opens the purchase page of the companion app (CompanionLauncher.openPurchase,
+     *  the same page a locked tab opens; "Kembali" there returns to the app being typed in). The keyboard never talks
+     *  to Google Play itself: the page does, and it writes the premium flag this row reads through TrialPolicy. */
+    private fun buildPremiumRow(): View {
+        val seal = ImageView(context).apply {
+            setImageResource(R.drawable.ic_premium_sellby)
+            setColorFilter(0xFFD9F99D.toInt())
+            layoutParams = LinearLayout.LayoutParams(dp(30f), dp(30f))
+        }
+        val title = TextView(context).apply {
+            text = "Beli Premium"
+            textSize = 13.5f
+            setTypeface(typeface, Typeface.BOLD)
+            setTextColor(Color.WHITE)
+        }
+        val subtitle = TextView(context).apply {
+            text = "Sekali bayar, semua fitur terbuka selamanya"
+            textSize = 10.5f
+            setTextColor(0xCCFFFFFF.toInt())
+        }
+        val texts = LinearLayout(context).apply {
+            orientation = VERTICAL
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply { marginStart = dp(12f) }
+            addView(title)
+            addView(subtitle)
+        }
+        val chevron = ImageView(context).apply {
+            setImageResource(R.drawable.ic_settings_chevron_right_sellby)
+            setColorFilter(Color.WHITE)
+            layoutParams = LinearLayout.LayoutParams(dp(16f), dp(16f))
+        }
+        return LinearLayout(context).apply {
+            orientation = HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(dp(14f), dp(11f), dp(12f), dp(11f))
+            background = GradientDrawable(GradientDrawable.Orientation.LEFT_RIGHT, intArrayOf(0xFF3D82C4.toInt(), 0xFF0B2247.toInt())).apply {
+                cornerRadius = dp(12f).toFloat()
+            }
+            isClickable = true
+            isFocusable = true
+            setOnClickListener { CompanionLauncher.openPurchase(context) }
+            addView(seal)
+            addView(texts)
+            addView(chevron)
         }
     }
 

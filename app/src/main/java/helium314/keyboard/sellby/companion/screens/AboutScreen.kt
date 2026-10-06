@@ -26,12 +26,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -46,10 +42,7 @@ import androidx.compose.ui.unit.sp
 import helium314.keyboard.latin.BuildConfig
 import helium314.keyboard.latin.R
 import helium314.keyboard.sellby.companion.SellbyLinks
-import helium314.keyboard.sellby.companion.TrialPolicy
-import helium314.keyboard.sellby.companion.TrialRules
-import helium314.keyboard.sellby.companion.TrialState
-import helium314.keyboard.sellby.companion.billing.BillingRepository
+import helium314.keyboard.sellby.companion.components.NavigationBarIcons
 import helium314.keyboard.sellby.companion.theme.SellbyColors
 
 private val PageBackground = Color(0xFFF1F5F9)
@@ -60,11 +53,10 @@ private val PageBackground = Color(0xFFF1F5F9)
  *  opens them), and a link whose address is not configured yet is simply not shown (a release build cannot get
  *  that far: scripts/check-release.ps1 fails while [SellbyLinks] is empty). */
 @Composable
-fun AboutScreen(onBack: () -> Unit, onOpenPurchase: () -> Unit) {
+fun AboutScreen(onBack: () -> Unit) {
     val context = LocalContext.current
     BackHandler { onBack() }
-    val billing by remember { BillingRepository.get(context).state }.collectAsState()
-    val trialState = remember { TrialPolicy.state(context) }
+    NavigationBarIcons(darkIcons = true)
     val statusBarHeight = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
     val navBarHeight = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
 
@@ -101,36 +93,6 @@ fun AboutScreen(onBack: () -> Unit, onOpenPurchase: () -> Unit) {
                     fontSize = 12.5.sp,
                     textAlign = TextAlign.Center,
                 )
-            }
-
-            AboutCard("Premium") {
-                Body(
-                    when {
-                        billing.premium -> "Premium aktif. Terima kasih sudah mendukung Sellby!"
-                        billing.pending -> "Pembayaranmu sedang diproses. Fitur terbuka otomatis begitu pembayaran selesai."
-                        trialState is TrialState.Active -> "Masa coba gratis: hari ke-${trialState.dayIndex} dari ${TrialRules.TRIAL_DAYS}. " +
-                            "Semua fitur terbuka. Beli sekali bayar untuk memakainya selamanya."
-                        trialState is TrialState.Expired -> "Masa coba gratis sudah habis. Beli sekali bayar untuk membuka fitur panel lagi."
-                        else -> "Semua fitur gratis dicoba 3 hari, setelah itu sekali bayar tanpa langganan."
-                    }
-                )
-                if (!billing.premium) {
-                    Surface(
-                        onClick = onOpenPurchase,
-                        shape = RoundedCornerShape(24.dp),
-                        color = SellbyColors.TealPrimary,
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        Text(
-                            "Beli Premium / Pulihkan pembelian",
-                            color = SellbyColors.White,
-                            fontSize = 13.5.sp,
-                            fontWeight = FontWeight.Bold,
-                            textAlign = TextAlign.Center,
-                            modifier = Modifier.fillMaxWidth().padding(vertical = 11.dp),
-                        )
-                    }
-                }
             }
 
             AboutCard("Perangkat lunak bebas (GPL-3.0)") {
