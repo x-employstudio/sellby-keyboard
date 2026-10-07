@@ -217,7 +217,7 @@ private fun PurchaseDiagnosis(onDismiss: () -> Unit) {
                 }
                 Text(
                     "Harga: " + when (val product = state.product) {
-                        is ProductState.Ready -> product.formattedPrice
+                        is ProductState.Ready -> product.formattedPrice + if (product.live) "" else " (tersimpan dari Play sebelumnya, belum diperbarui)"
                         ProductState.Loading -> "memuat..."
                         ProductState.Failed -> "gagal dimuat"
                     } + (state.productProblem?.let { " ($it)" } ?: ""),

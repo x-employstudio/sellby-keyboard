@@ -87,6 +87,8 @@ fun PurchaseScreen(onContinue: () -> Unit, cameFromLockedFeature: Boolean = fals
     val state by repository.state.collectAsState()
     val scope = rememberCoroutineScope()
     val statusBarHeight = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+    // Joins the load that CompanionActivity started when the app opened (usually already finished); the repository retries a
+    // few times by itself, and shows the remembered price meanwhile if there is one.
     LaunchedEffect(Unit) { repository.loadProduct() }
 
     fun toast(message: String) = Toast.makeText(context, message, Toast.LENGTH_LONG).show()

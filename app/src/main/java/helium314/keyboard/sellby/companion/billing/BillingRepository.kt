@@ -17,7 +17,9 @@ import kotlinx.coroutines.launch
 
 sealed interface ProductState {
     data object Loading : ProductState
-    data class Ready(val formattedPrice: String) : ProductState
+    /** [live] = the text came from Google Play just now; false = the last price Play gave earlier (remembered on the phone)
+     *  that the live answer has not replaced yet. The app never invents a price: it is always Play's own text. */
+    data class Ready(val formattedPrice: String, val live: Boolean = true) : ProductState
     data object Failed : ProductState
 }
 
@@ -55,12 +57,14 @@ class BillingRepository(
     private val scope: CoroutineScope,
     private val now: () -> Long = System::currentTimeMillis,
     private val priceCache: PriceCache? = null,
-    private val retryDelayMs: Long = 1_500L,
+    private val retryDelayMs: Long = 2_500L,
 ) {
-    // A price Play reported earlier is shown at once; the live answer replaces it as soon as it arrives.
+    // The price Play reported earlier (remembered on the phone) is on screen from the first frame; Play's live answer replaces
+    // it as soon as it arrives, so a price changed in Play Console is picked up. The very first time, before Play has ever
+    // answered, the state is Loading. Nothing here is a price of our own.
     private val _state = MutableStateFlow(
         storage.load().toUi().let { ui ->
-            priceCache?.loadPrice()?.let { ui.copy(product = ProductState.Ready(it)) } ?: ui
+            priceCache?.loadPrice()?.let { ui.copy(product = ProductState.Ready(it, live = false)) } ?: ui
         }
     )
     val state: StateFlow<BillingUiState> = _state.asStateFlow()
@@ -205,7 +209,7 @@ class BillingRepository(
     private fun Entitlement.toUi() = BillingUiState(premium = premium, pending = pending, notOwnedSinceMillis = notOwnedSinceMillis)
 
     companion object {
-        private const val PRODUCT_ATTEMPTS = 3
+        private const val PRODUCT_ATTEMPTS = 4
 
         @Volatile private var instance: BillingRepository? = null
 

@@ -198,7 +198,7 @@ class BillingRepositoryTest {
         val cached = BillingRepository(
             backend, MemoryStorage(), CoroutineScope(Dispatchers.Unconfined), priceCache = MemoryPriceCache("Rp149.000"), retryDelayMs = 0L,
         )
-        assertEquals(ProductState.Ready("Rp149.000"), cached.state.value.product)
+        assertEquals(ProductState.Ready("Rp149.000", live = false), cached.state.value.product)
     }
 
     @Test
@@ -215,7 +215,7 @@ class BillingRepositoryTest {
         val repo = BillingRepository(backend, storage, CoroutineScope(Dispatchers.Unconfined), priceCache = priceCache, retryDelayMs = 0L)
         backend.product = Fetch.Failed
         repo.loadProduct()
-        assertEquals(ProductState.Ready("Rp149.000"), repo.state.value.product)
+        assertEquals(ProductState.Ready("Rp149.000", live = false), repo.state.value.product)
     }
 
     @Test
@@ -223,14 +223,14 @@ class BillingRepositoryTest {
         backend.productFailuresFirst = 2
         repository.loadProduct()
         assertEquals(ProductState.Ready("Rp149.000"), repository.state.value.product)
-        assertEquals(3, backend.productQueries)
+        assertEquals(3, backend.productQueries) // two failures, then success
 
         backend.productQueries = 0
         backend.productFailuresFirst = 10
         val fresh = BillingRepository(backend, MemoryStorage(), CoroutineScope(Dispatchers.Unconfined), retryDelayMs = 0L)
         fresh.loadProduct()
-        assertEquals(ProductState.Failed, fresh.state.value.product)
-        assertEquals(3, backend.productQueries) // gave up after three tries
+        assertEquals(ProductState.Failed, fresh.state.value.product) // no price was ever known, so it is reported
+        assertEquals(4, backend.productQueries) // gave up after four tries
     }
 
     @Test
@@ -254,6 +254,11 @@ class BillingRepositoryTest {
     }
 
     @Test
+    fun aFirstRunInventsNoPriceItWaitsForPlay() {
+        assertEquals(ProductState.Loading, repository.state.value.product)
+    }
+
+    @Test
     fun aProductThatCannotBeLoadedIsReportedAndCanBeRetried() = runBlocking {
         backend.product = Fetch.Failed
         repository.loadProduct()
@@ -261,7 +266,7 @@ class BillingRepositoryTest {
 
         backend.product = Fetch.Ok(ProductInfo("Rp149.000"))
         repository.loadProduct()
-        assertTrue(repository.state.value.product is ProductState.Ready)
+        assertEquals(ProductState.Ready("Rp149.000", live = true), repository.state.value.product)
     }
 
     // ---- the purchase flow -------------------------------------------------------------------------------------

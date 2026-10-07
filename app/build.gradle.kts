@@ -26,7 +26,7 @@ android {
         targetSdk = 37
         // Sellby's own version. The code keeps counting up from HeliBoard's 4101 on purpose: AppUpgrade
         // compares against VERSION_CODE (its newest step is "<= 4005"), so it must never go down.
-        versionCode = 5010
+        versionCode = 5011
         versionName = "1.0.0"
         ndk {
             abiFilters.clear()
