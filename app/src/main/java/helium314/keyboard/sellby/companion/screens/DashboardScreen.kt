@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
@@ -29,6 +30,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.isImeVisible
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
@@ -293,7 +296,6 @@ fun DashboardScreen(onExit: () -> Unit, onDataReset: () -> Unit, onReplayTutoria
                 onFaqClick = { showFaq = true },
                 onTutorialClick = onReplayTutorial,
                 onSupportClick = { contactSupport(context) },
-                onAboutClick = onOpenAbout,
             )
             Spacer(Modifier.height(8.dp))
             // Keep the last card clear of the phone's own back/home buttons (the page is drawn edge-to-edge).
@@ -315,7 +317,7 @@ fun DashboardScreen(onExit: () -> Unit, onDataReset: () -> Unit, onReplayTutoria
     }
     }
 
-    if (showFaq) FaqBottomSheet(onDismiss = { showFaq = false })
+    if (showFaq) FaqBottomSheet(onDismiss = { showFaq = false }, onOpenAbout = { showFaq = false; onOpenAbout() })
     if (showDataTransaksi) DataTransaksiDialog(onDismiss = { showDataTransaksi = false })
     if (showDataPelanggan) DataPelangganDialog(onDismiss = { showDataPelanggan = false })
     if (showDatePicker) {
@@ -630,16 +632,25 @@ private fun TestKeyboardField(text: String, onClick: () -> Unit) {
 // lagging behind it. Rendered in-tree, the card just appears the instant `showTestKeyboardPopup`
 // flips true, and its only motion afterwards comes from `Modifier.imePadding()`, which tracks the
 // exact same live IME inset animating the real keyboard - so the two move in lockstep.
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun TestKeyboardOverlay(text: String, onTextChange: (String) -> Unit, onDismiss: () -> Unit) {
     val focusRequester = remember { FocusRequester() }
+    // The phone's back button is taken by the system to CLOSE THE KEYBOARD first, so the popup's own back handler never
+    // saw it and the popup stayed behind, without a keyboard. A keyboard that was open and has just closed (back, or
+    // anything else) now ends the popup exactly like "Selesai" does.
+    val imeVisible = WindowInsets.isImeVisible
+    var imeWasVisible by remember { mutableStateOf(false) }
+    LaunchedEffect(imeVisible) {
+        if (imeVisible) imeWasVisible = true else if (imeWasVisible) onDismiss()
+    }
     val maxCardHeight = LocalConfiguration.current.screenHeightDp.dp * 0.5f
     Box(
         Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.38f))
             .clickable(indication = null, interactionSource = remember { MutableInteractionSource() }, onClick = onDismiss),
     ) {
         Row(
-            Modifier.align(Alignment.BottomCenter).fillMaxWidth().imePadding()
+            Modifier.align(Alignment.BottomCenter).fillMaxWidth().navigationBarsPadding().imePadding()
                 .padding(horizontal = 16.dp, vertical = 8.dp)
                 .heightIn(min = 52.dp, max = maxCardHeight)
                 .clip(RoundedCornerShape(24.dp))
@@ -799,7 +810,6 @@ private fun SupportFaqCard(
     onFaqClick: () -> Unit,
     onTutorialClick: () -> Unit,
     onSupportClick: () -> Unit,
-    onAboutClick: () -> Unit,
 ) {
     val chevronAngle by animateFloatAsState(if (expanded) 180f else 0f, label = "supportChevron")
     Column(
@@ -836,7 +846,6 @@ private fun SupportFaqCard(
                     SupportLink("?", "Cari FAQs", onFaqClick)
                     SupportLink("▶", "Lihat Tutorial", onTutorialClick, iconSize = 9.sp)
                     SupportLink("✉", "Hubungi Dukungan", onSupportClick)
-                    SupportLink("i", "Tentang & Lisensi", onAboutClick)
                 }
                 Spacer(Modifier.width(22.dp))
                 Text(
@@ -891,10 +900,10 @@ private val FAQ_ITEMS = listOf(
 )
 
 /** The FAQ as an accordion: every question is a row with a chevron; tapping it opens the full answer below it (one at
- *  a time) and turns the chevron up. */
+ *  a time) and turns the chevron up. The last row, below the questions, opens "Tentang & Lisensi". */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun FaqBottomSheet(onDismiss: () -> Unit) {
+private fun FaqBottomSheet(onDismiss: () -> Unit, onOpenAbout: () -> Unit) {
     var openIndex by remember { mutableStateOf<Int?>(null) }
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState()) {
         Column(Modifier.verticalScroll(rememberScrollState()).padding(horizontal = 24.dp).padding(bottom = 20.dp)) {
@@ -902,6 +911,17 @@ private fun FaqBottomSheet(onDismiss: () -> Unit) {
             Spacer(Modifier.height(8.dp))
             FAQ_ITEMS.forEachIndexed { index, item ->
                 FaqRow(item, expanded = openIndex == index) { openIndex = if (openIndex == index) null else index }
+            }
+            // The licence / credits screen lives here, below the questions, not on the dashboard card.
+            Row(
+                Modifier.padding(top = 6.dp).clip(RoundedCornerShape(8.dp)).clickable { onOpenAbout() }.heightIn(min = 44.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Box(Modifier.width(20.dp), contentAlignment = Alignment.Center) {
+                    Text("i", color = SellbyColors.TealPrimary, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                }
+                Spacer(Modifier.width(6.dp))
+                Text("Tentang & Lisensi", color = SellbyColors.TealPrimary, fontSize = 13.5.sp, fontWeight = FontWeight.SemiBold)
             }
             Spacer(Modifier.windowInsetsBottomHeight(WindowInsets.navigationBars))
         }
