@@ -105,20 +105,17 @@ fun PurchaseScreen(onContinue: () -> Unit, cameFromLockedFeature: Boolean = fals
                 modifier = Modifier.fillMaxWidth(1f),
             )
             Spacer(Modifier.height(8.dp))
-            Box(Modifier.fillMaxWidth().heightIn(min = 84.dp), contentAlignment = Alignment.Center) {
+            Box(Modifier.fillMaxWidth().heightIn(min = 64.dp), contentAlignment = Alignment.Center) {
                 when (val product = state.product) {
                     ProductState.Loading ->
                         Text("Memuat harga...", color = SellbyColors.White.copy(alpha = 0.75f), fontSize = 14.sp)
-                    is ProductState.Ready -> Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text(
-                            product.formattedPrice,
-                            color = SellbyColors.White,
-                            fontSize = 44.sp,
-                            fontWeight = FontWeight.ExtraBold,
-                            textAlign = TextAlign.Center,
-                        )
-                        Text("sekali bayar, tanpa langganan", color = SellbyColors.White.copy(alpha = 0.8f), fontSize = 12.sp)
-                    }
+                    is ProductState.Ready -> Text(
+                        product.formattedPrice,
+                        color = SellbyColors.White,
+                        fontSize = 44.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        textAlign = TextAlign.Center,
+                    )
                     ProductState.Failed -> Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(
                             "Harga belum bisa dimuat",
