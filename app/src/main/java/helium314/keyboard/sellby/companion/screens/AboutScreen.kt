@@ -32,6 +32,7 @@ import java.util.Date
 import java.text.SimpleDateFormat
 import kotlinx.coroutines.launch
 import helium314.keyboard.sellby.companion.billing.BillingRepository
+import helium314.keyboard.sellby.companion.billing.ProductState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.remember
@@ -214,6 +215,14 @@ private fun PurchaseDiagnosis(onDismiss: () -> Unit) {
                         fontSize = 13.sp,
                     )
                 }
+                Text(
+                    "Harga: " + when (val product = state.product) {
+                        is ProductState.Ready -> product.formattedPrice
+                        ProductState.Loading -> "memuat..."
+                        ProductState.Failed -> "gagal dimuat"
+                    } + (state.productProblem?.let { " ($it)" } ?: ""),
+                    fontSize = 13.sp,
+                )
                 if (state.checking) Text("Memeriksa...", fontSize = 13.sp, color = SellbyColors.TextMuted)
             }
         },

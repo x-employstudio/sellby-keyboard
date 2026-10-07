@@ -23,6 +23,10 @@ const val PREF_PREMIUM_PENDING = "sellby_premium_pending"
 /** Wall-clock time of the first Play check that did NOT list the purchase while premium was on; 0 = none. */
 const val PREF_PREMIUM_NOT_OWNED_SINCE = "sellby_premium_not_owned_since"
 
+/** The last price Google Play reported for the premium product, shown at once the next time the purchase page opens
+ *  (and replaced by the live price as soon as Play answers). Not removed by the data reset: it is not personal data. */
+const val PREF_PREMIUM_PRICE_CACHE = "sellby_premium_price_cache"
+
 // Free trial (see TrialPolicy). Like PREF_PREMIUM_PURCHASED these are deliberately NOT removed by
 // performDeleteAll() - "Hapus Semua Data" must not be a way to start a fresh trial.
 const val PREF_TRIAL_START_MILLIS = "sellby_trial_start_millis"

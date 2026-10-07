@@ -50,6 +50,9 @@ internal class PlayBillingBackend(context: Context) : BillingBackend {
     @Volatile private var offerToken: String? = null
     @Volatile private var updateListener: ((PurchaseUpdate) -> Unit)? = null
     private var idleClose: Job? = null
+    @Volatile private var problem: String? = null
+
+    override fun lastProblem(): String? = problem
 
     override fun setUpdateListener(listener: (PurchaseUpdate) -> Unit) {
         updateListener = listener
@@ -74,8 +77,14 @@ internal class PlayBillingBackend(context: Context) : BillingBackend {
         val offer = details?.oneTimePurchaseOfferDetailsList?.firstOrNull() ?: details?.oneTimePurchaseOfferDetails
         val price = offer?.formattedPrice
         if (result.billingResult.responseCode != BillingResponseCode.OK || details == null || offer == null || price.isNullOrBlank()) {
+            problem = when {
+                result.billingResult.responseCode != BillingResponseCode.OK -> "produk: ${codeName(result.billingResult.responseCode)}"
+                details == null -> "produk $PREMIUM_PRODUCT_ID tidak ditemukan (Play mengembalikan ${result.productDetailsList?.size ?: 0} produk)"
+                else -> "produk tanpa harga"
+            }
             Fetch.Failed
         } else {
+            problem = null
             premiumDetails = details
             offerToken = offer.offerToken
             Fetch.Ok(ProductInfo(price))
@@ -123,11 +132,15 @@ internal class PlayBillingBackend(context: Context) : BillingBackend {
         activeOperations.incrementAndGet()
         try {
             val c = readyClient() ?: return Fetch.Failed
-            return withTimeoutOrNull(OPERATION_TIMEOUT_MS) { block(c) } ?: Fetch.Failed
+            return withTimeoutOrNull(OPERATION_TIMEOUT_MS) { block(c) } ?: run {
+                problem = "Play tidak menjawab dalam ${OPERATION_TIMEOUT_MS / 1000} detik"
+                Fetch.Failed
+            }
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
             Log.d(TAG, "billing call failed: $e")
+            problem = "kesalahan: ${e.javaClass.simpleName}"
             return Fetch.Failed
         } finally {
             activeOperations.decrementAndGet()
@@ -144,6 +157,7 @@ internal class PlayBillingBackend(context: Context) : BillingBackend {
                 val candidate = client ?: newClient().also { client = it }
                 val code = withTimeoutOrNull(CONNECT_TIMEOUT_MS) { connect(candidate) }
                 if (code == BillingResponseCode.OK) return@withLock candidate
+                problem = "koneksi ke Play: " + (code?.let { codeName(it) } ?: "tidak menjawab dalam ${CONNECT_TIMEOUT_MS / 1000} detik")
                 discardClient() // a client that failed or timed out is not worth keeping
                 if (code != null && !isRetryable(code)) break // e.g. no Play Store on this device
                 if (attempt < CONNECT_ATTEMPTS) {
@@ -187,6 +201,23 @@ internal class PlayBillingBackend(context: Context) : BillingBackend {
             delay(IDLE_CLOSE_MS + extraMs)
             if (activeOperations.get() == 0) discardClient() else scheduleIdleClose()
         }
+    }
+
+    private fun codeName(code: Int) = when (code) {
+        BillingResponseCode.OK -> "OK"
+        BillingResponseCode.USER_CANCELED -> "USER_CANCELED"
+        BillingResponseCode.SERVICE_UNAVAILABLE -> "SERVICE_UNAVAILABLE"
+        BillingResponseCode.BILLING_UNAVAILABLE -> "BILLING_UNAVAILABLE"
+        BillingResponseCode.ITEM_UNAVAILABLE -> "ITEM_UNAVAILABLE"
+        BillingResponseCode.DEVELOPER_ERROR -> "DEVELOPER_ERROR"
+        BillingResponseCode.ERROR -> "ERROR"
+        BillingResponseCode.ITEM_ALREADY_OWNED -> "ITEM_ALREADY_OWNED"
+        BillingResponseCode.ITEM_NOT_OWNED -> "ITEM_NOT_OWNED"
+        BillingResponseCode.NETWORK_ERROR -> "NETWORK_ERROR"
+        BillingResponseCode.SERVICE_DISCONNECTED -> "SERVICE_DISCONNECTED"
+        BillingResponseCode.SERVICE_TIMEOUT -> "SERVICE_TIMEOUT"
+        BillingResponseCode.FEATURE_NOT_SUPPORTED -> "FEATURE_NOT_SUPPORTED"
+        else -> "kode $code"
     }
 
     private fun isRetryable(code: Int) = code == BillingResponseCode.SERVICE_UNAVAILABLE ||

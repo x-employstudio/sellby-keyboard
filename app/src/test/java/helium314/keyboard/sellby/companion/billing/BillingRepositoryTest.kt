@@ -28,9 +28,14 @@ class BillingRepositoryTest {
         var launchResult = LaunchResult.Started
         var acknowledgeSucceeds = true
         var queryCount = 0
+        var productQueries = 0
+        /** The next N product queries fail (to test the automatic retry). */
+        var productFailuresFirst = 0
         val acknowledged = mutableListOf<String>()
         /** When set, queryPurchases waits for it (to hold a check "in flight"). */
         var gate: CompletableDeferred<Unit>? = null
+        /** When set, queryProduct waits for it (to hold a price load "in flight"). */
+        var productGate: CompletableDeferred<Unit>? = null
 
         override fun setUpdateListener(listener: (PurchaseUpdate) -> Unit) {
             this.listener = listener
@@ -42,7 +47,15 @@ class BillingRepositoryTest {
             return purchases
         }
 
-        override suspend fun queryProduct(): Fetch<ProductInfo> = product
+        override suspend fun queryProduct(): Fetch<ProductInfo> {
+            productQueries++
+            productGate?.await()
+            if (productFailuresFirst > 0) {
+                productFailuresFirst--
+                return Fetch.Failed
+            }
+            return product
+        }
         override suspend fun launchPurchase(activity: Activity): LaunchResult = launchResult
         override suspend fun acknowledge(purchaseToken: String): Boolean {
             if (acknowledgeSucceeds) acknowledged += purchaseToken
@@ -59,11 +72,20 @@ class BillingRepositoryTest {
         }
     }
 
+    private class MemoryPriceCache(var price: String? = null) : PriceCache {
+        override fun loadPrice() = price
+        override fun savePrice(price: String) {
+            this.price = price
+        }
+    }
+
     private val backend = FakeBackend()
     private val storage = MemoryStorage()
+    private val priceCache = MemoryPriceCache()
     private var clock = 1_000_000_000_000L
     private val repository = BillingRepository(
         backend, storage, CoroutineScope(SupervisorJob() + Dispatchers.Unconfined), now = { clock },
+        priceCache = priceCache, retryDelayMs = 0L,
     )
     private val activity: Activity = Robolectric.buildActivity(Activity::class.java).get()
 
@@ -169,6 +191,58 @@ class BillingRepositoryTest {
         storage.value = Entitlement(premium = true)
         repository.reconcile() // Play lists nothing: the countdown starts now
         assertEquals(clock, repository.state.value.notOwnedSinceMillis)
+    }
+
+    @Test
+    fun aPriceKnownFromBeforeIsShownAtOnce() {
+        val cached = BillingRepository(
+            backend, MemoryStorage(), CoroutineScope(Dispatchers.Unconfined), priceCache = MemoryPriceCache("Rp149.000"), retryDelayMs = 0L,
+        )
+        assertEquals(ProductState.Ready("Rp149.000"), cached.state.value.product)
+    }
+
+    @Test
+    fun theLivePriceIsRememberedForNextTime() = runBlocking {
+        backend.product = Fetch.Ok(ProductInfo("Rp150.000"))
+        repository.loadProduct()
+        assertEquals(ProductState.Ready("Rp150.000"), repository.state.value.product)
+        assertEquals("Rp150.000", priceCache.price)
+    }
+
+    @Test
+    fun aFailedRefreshKeepsThePriceThatIsAlreadyShown() = runBlocking {
+        priceCache.price = "Rp149.000"
+        val repo = BillingRepository(backend, storage, CoroutineScope(Dispatchers.Unconfined), priceCache = priceCache, retryDelayMs = 0L)
+        backend.product = Fetch.Failed
+        repo.loadProduct()
+        assertEquals(ProductState.Ready("Rp149.000"), repo.state.value.product)
+    }
+
+    @Test
+    fun aFailedLoadIsRetriedBeforeGivingUp() = runBlocking {
+        backend.productFailuresFirst = 2
+        repository.loadProduct()
+        assertEquals(ProductState.Ready("Rp149.000"), repository.state.value.product)
+        assertEquals(3, backend.productQueries)
+
+        backend.productQueries = 0
+        backend.productFailuresFirst = 10
+        val fresh = BillingRepository(backend, MemoryStorage(), CoroutineScope(Dispatchers.Unconfined), retryDelayMs = 0L)
+        fresh.loadProduct()
+        assertEquals(ProductState.Failed, fresh.state.value.product)
+        assertEquals(3, backend.productQueries) // gave up after three tries
+    }
+
+    @Test
+    fun loadingTheProductTwiceAtOnceAsksPlayOnce() = runBlocking {
+        val gate = CompletableDeferred<Unit>()
+        backend.productGate = gate
+        val first = repository.loadProductAsync()
+        val second = repository.loadProductAsync()
+        assertSame(first, second)
+        gate.complete(Unit)
+        first.await()
+        assertEquals(1, backend.productQueries)
     }
 
     // ---- the product / price -----------------------------------------------------------------------------------

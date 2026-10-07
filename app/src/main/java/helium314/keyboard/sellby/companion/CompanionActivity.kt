@@ -27,7 +27,9 @@ class CompanionActivity : ComponentActivity() {
         // all picked up. Best effort and silent: without Play or network nothing changes.
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
-                BillingRepository.get(applicationContext).reconcile()
+                val billing = BillingRepository.get(applicationContext)
+                billing.loadProductAsync() // so the purchase page usually finds the price ready
+                billing.reconcile()
             }
         }
         // Set by the keyboard when a locked toolbar tab was tapped (see CompanionLauncher).

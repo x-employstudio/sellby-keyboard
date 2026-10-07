@@ -8,6 +8,7 @@ import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -38,6 +39,8 @@ data class BillingUiState(
     /** Diagnosis only: the result of the most recent check, and the stored "first check that did not list the purchase". */
     val lastCheck: CheckReport? = null,
     val notOwnedSinceMillis: Long = 0L,
+    /** Diagnosis only: why the last attempt to load the price failed. */
+    val productProblem: String? = null,
 )
 
 /** Ties Play ([BillingBackend]), the pure decision logic ([EntitlementRules]) and storage ([EntitlementStorage])
@@ -51,12 +54,20 @@ class BillingRepository(
     private val storage: EntitlementStorage,
     private val scope: CoroutineScope,
     private val now: () -> Long = System::currentTimeMillis,
+    private val priceCache: PriceCache? = null,
+    private val retryDelayMs: Long = 1_500L,
 ) {
-    private val _state = MutableStateFlow(storage.load().toUi())
+    // A price Play reported earlier is shown at once; the live answer replaces it as soon as it arrives.
+    private val _state = MutableStateFlow(
+        storage.load().toUi().let { ui ->
+            priceCache?.loadPrice()?.let { ui.copy(product = ProductState.Ready(it)) } ?: ui
+        }
+    )
     val state: StateFlow<BillingUiState> = _state.asStateFlow()
 
     private val entitlementLock = Any()
     private var checkInFlight: Deferred<Boolean>? = null
+    private var productInFlight: Deferred<Unit>? = null
     private val acknowledging = HashSet<String>()
 
     init {
@@ -100,14 +111,31 @@ class BillingRepository(
         return answered
     }
 
+    /** Starts (or joins) loading the price. Done early (when the companion app opens) so the purchase page usually finds it
+     *  ready. Never replaces a price that is already shown with a "loading" state; a failed try is repeated a couple of
+     *  times before the page is told it failed, and a failure never removes a price that is already known. */
+    @Synchronized
+    fun loadProductAsync(): Deferred<Unit> {
+        productInFlight?.takeIf { it.isActive }?.let { return it }
+        return scope.async { doLoadProduct() }.also { productInFlight = it }
+    }
+
     /** Loads the price shown on the purchase page; call it every time that page opens. */
-    suspend fun loadProduct() {
-        _state.update { it.copy(product = ProductState.Loading) }
-        val product = when (val fetched = backend.queryProduct()) {
-            is Fetch.Ok -> ProductState.Ready(fetched.value.formattedPrice)
-            Fetch.Failed -> ProductState.Failed
+    suspend fun loadProduct() = loadProductAsync().await()
+
+    private suspend fun doLoadProduct() {
+        if (_state.value.product !is ProductState.Ready) _state.update { it.copy(product = ProductState.Loading) }
+        repeat(PRODUCT_ATTEMPTS) { attempt ->
+            val fetched = backend.queryProduct()
+            if (fetched is Fetch.Ok) {
+                priceCache?.savePrice(fetched.value.formattedPrice)
+                _state.update { it.copy(product = ProductState.Ready(fetched.value.formattedPrice), productProblem = null) }
+                return
+            }
+            if (attempt < PRODUCT_ATTEMPTS - 1) delay(retryDelayMs)
         }
-        _state.update { it.copy(product = product) }
+        val problem = backend.lastProblem()
+        _state.update { it.copy(product = if (it.product is ProductState.Ready) it.product else ProductState.Failed, productProblem = problem) }
     }
 
     /** Opens Play's purchase sheet. Call from the main thread (a Compose click handler's scope is). */
@@ -177,16 +205,22 @@ class BillingRepository(
     private fun Entitlement.toUi() = BillingUiState(premium = premium, pending = pending, notOwnedSinceMillis = notOwnedSinceMillis)
 
     companion object {
+        private const val PRODUCT_ATTEMPTS = 3
+
         @Volatile private var instance: BillingRepository? = null
 
         fun get(context: Context): BillingRepository = instance ?: synchronized(this) {
             instance ?: create(context.applicationContext).also { instance = it }
         }
 
-        private fun create(appContext: Context) = BillingRepository(
-            backend = PlayBillingBackend(appContext),
-            storage = EntitlementStore(appContext),
-            scope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
-        )
+        private fun create(appContext: Context): BillingRepository {
+            val store = EntitlementStore(appContext)
+            return BillingRepository(
+                backend = PlayBillingBackend(appContext),
+                storage = store,
+                scope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
+                priceCache = store,
+            )
+        }
     }
 }

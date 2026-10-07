@@ -48,4 +48,7 @@ interface BillingBackend {
 
     /** True when Play accepted the acknowledgement. */
     suspend fun acknowledge(purchaseToken: String): Boolean
+
+    /** Short, human-readable reason for the most recent failed call (diagnosis only), or null. */
+    fun lastProblem(): String? = null
 }
