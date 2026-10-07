@@ -27,6 +27,21 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
+import java.util.Locale
+import java.util.Date
+import java.text.SimpleDateFormat
+import kotlinx.coroutines.launch
+import helium314.keyboard.sellby.companion.billing.BillingRepository
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.collectAsState
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.AlertDialog
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -52,6 +67,7 @@ private val PageBackground = Color(0xFFF1F5F9)
  *  privacy statement. Everything is plain local text; only the links leave the app (the system browser or mail app
  *  opens them), and a link whose address is not configured yet is simply not shown (a release build cannot get
  *  that far: scripts/check-release.ps1 fails while [SellbyLinks] is empty). */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun AboutScreen(onBack: () -> Unit) {
     val context = LocalContext.current
@@ -59,7 +75,9 @@ fun AboutScreen(onBack: () -> Unit) {
     NavigationBarIcons(darkIcons = true)
     val statusBarHeight = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
     val navBarHeight = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+    var showDiagnosis by remember { mutableStateOf(false) }
 
+    if (showDiagnosis) PurchaseDiagnosis(onDismiss = { showDiagnosis = false })
     Column(Modifier.fillMaxSize().background(PageBackground)) {
         Row(
             Modifier.fillMaxWidth().background(SellbyColors.TealDark)
@@ -92,6 +110,8 @@ fun AboutScreen(onBack: () -> Unit) {
                     color = SellbyColors.TextMuted,
                     fontSize = 12.5.sp,
                     textAlign = TextAlign.Center,
+                    // Hidden support aid: a long press shows what Google Play told the app about the purchase.
+                    modifier = Modifier.combinedClickable(onClick = {}, onLongClick = { showDiagnosis = true }).padding(8.dp),
                 )
             }
 
@@ -150,6 +170,56 @@ fun AboutScreen(onBack: () -> Unit) {
             Spacer(Modifier.height(12.dp + navBarHeight))
         }
     }
+}
+
+/** Support aid (long press on the version): the premium state the keyboard reads and the answer of the last check with Google
+ *  Play. A refund only takes premium away after TWO checks that did not list the purchase, 5+ minutes apart; this shows
+ *  where that stands. "Periksa sekarang" runs a check right away. */
+@Composable
+private fun PurchaseDiagnosis(onDismiss: () -> Unit) {
+    val context = LocalContext.current
+    val repository = remember { BillingRepository.get(context) }
+    val state by repository.state.collectAsState()
+    val scope = rememberCoroutineScope()
+    val format = remember { SimpleDateFormat("dd MMM HH:mm:ss", Locale("id", "ID")) }
+    fun time(millis: Long) = if (millis <= 0L) "-" else format.format(Date(millis))
+    val check = state.lastCheck
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Status pembelian", fontWeight = FontWeight.Bold) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text("Premium (dibaca keyboard): ${if (state.premium) "AKTIF" else "tidak aktif"}", fontSize = 13.sp)
+                Text("Pembayaran tertunda: ${if (state.pending) "ya" else "tidak"}", fontSize = 13.sp)
+                Text(
+                    "Pencabutan: " + if (state.notOwnedSinceMillis > 0L) {
+                        "pengecekan pertama tanpa pembelian pada ${time(state.notOwnedSinceMillis)}; premium dicabut oleh pengecekan " +
+                            "berikutnya yang berjarak minimal 5 menit dari waktu itu"
+                    } else {
+                        "belum ada pengecekan tanpa pembelian"
+                    },
+                    fontSize = 13.sp,
+                )
+                if (check == null) {
+                    Text("Pengecekan Google Play: belum ada sejak app dibuka", fontSize = 13.sp)
+                } else {
+                    Text(
+                        "Pengecekan terakhir: ${time(check.atMillis)} - " +
+                            if (check.answered) "Google Play menjawab" else "TIDAK terhubung ke Google Play",
+                        fontSize = 13.sp,
+                    )
+                    Text(
+                        "Pembelian premium yang dilaporkan Play: " +
+                            if (check.premiumPurchases.isEmpty()) "tidak ada" else check.premiumPurchases.joinToString(", "),
+                        fontSize = 13.sp,
+                    )
+                }
+                if (state.checking) Text("Memeriksa...", fontSize = 13.sp, color = SellbyColors.TextMuted)
+            }
+        },
+        confirmButton = { TextButton(onClick = { scope.launch { repository.reconcile() } }) { Text("Periksa sekarang") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Tutup") } },
+    )
 }
 
 @Composable

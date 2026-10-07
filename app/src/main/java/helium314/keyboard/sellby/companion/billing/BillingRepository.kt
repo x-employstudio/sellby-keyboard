@@ -20,6 +20,10 @@ sealed interface ProductState {
     data object Failed : ProductState
 }
 
+/** What the last check of the purchases with Google Play found (shown by the hidden diagnosis on "Tentang & Lisensi"):
+ *  when, whether Play answered at all, and which premium purchases it listed. */
+data class CheckReport(val atMillis: Long, val answered: Boolean, val premiumPurchases: List<String>)
+
 /** What the purchase page shows. [premium] and [pending] mirror the stored [Entitlement]. */
 data class BillingUiState(
     val premium: Boolean = false,
@@ -31,6 +35,9 @@ data class BillingUiState(
     val purchasing: Boolean = false,
     /** The last purchase attempt failed (cancelling is not a failure). */
     val purchaseFailed: Boolean = false,
+    /** Diagnosis only: the result of the most recent check, and the stored "first check that did not list the purchase". */
+    val lastCheck: CheckReport? = null,
+    val notOwnedSinceMillis: Long = 0L,
 )
 
 /** Ties Play ([BillingBackend]), the pure decision logic ([EntitlementRules]) and storage ([EntitlementStorage])
@@ -72,12 +79,19 @@ class BillingRepository(
         try {
             val fetched = backend.queryPurchases()
             answered = fetched is Fetch.Ok
+            val listed = (fetched as? Fetch.Ok)?.value.orEmpty().filter { PREMIUM_PRODUCT_ID in it.productIds }
+            val report = CheckReport(
+                atMillis = now(),
+                answered = answered,
+                premiumPurchases = listed.map { it.status.name + if (it.acknowledged) " (acknowledged)" else " (not acknowledged)" },
+            )
             val tokens = apply(
                 when (fetched) {
                     is Fetch.Ok -> BillingEvent.Snapshot(fetched.value)
                     Fetch.Failed -> BillingEvent.Failure
                 }
             )
+            _state.update { it.copy(lastCheck = report) }
             acknowledgeInBackground(tokens)
         } finally {
             // A successful check is the truth about any purchase flow that was still marked as running.
@@ -134,7 +148,13 @@ class BillingRepository(
         val current = storage.load()
         val update = EntitlementRules.reduce(current, event, now())
         if (update.entitlement != current) storage.save(update.entitlement)
-        _state.update { it.copy(premium = update.entitlement.premium, pending = update.entitlement.pending) }
+        _state.update {
+            it.copy(
+                premium = update.entitlement.premium,
+                pending = update.entitlement.pending,
+                notOwnedSinceMillis = update.entitlement.notOwnedSinceMillis,
+            )
+        }
         update.acknowledgeTokens
     }
 
@@ -154,7 +174,7 @@ class BillingRepository(
         }
     }
 
-    private fun Entitlement.toUi() = BillingUiState(premium = premium, pending = pending)
+    private fun Entitlement.toUi() = BillingUiState(premium = premium, pending = pending, notOwnedSinceMillis = notOwnedSinceMillis)
 
     companion object {
         @Volatile private var instance: BillingRepository? = null

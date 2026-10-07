@@ -44,6 +44,7 @@ class BillingPurityTest {
     fun onlyTheCompanionScreensReachThePurchaseCode() {
         val allowed = setOf(
             "helium314/keyboard/sellby/companion/CompanionActivity.kt",
+            "helium314/keyboard/sellby/companion/screens/AboutScreen.kt",
             "helium314/keyboard/sellby/companion/screens/LoadingScreen.kt",
             "helium314/keyboard/sellby/companion/screens/PurchaseScreen.kt",
         )

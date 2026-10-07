@@ -151,6 +151,26 @@ class BillingRepositoryTest {
         assertEquals(2, backend.queryCount)
     }
 
+    @Test
+    fun aCheckRecordsWhatPlayReturnedForTheDiagnosis() = runBlocking {
+        backend.purchases = Fetch.Ok(listOf(bought(acknowledged = true)))
+        repository.reconcile()
+        val report = repository.state.value.lastCheck!!
+        assertTrue(report.answered)
+        assertEquals(listOf("Purchased (acknowledged)"), report.premiumPurchases)
+
+        backend.purchases = Fetch.Failed
+        repository.reconcile()
+        assertFalse(repository.state.value.lastCheck!!.answered)
+    }
+
+    @Test
+    fun theStateShowsWhenTheRevocationCountdownStarted() = runBlocking {
+        storage.value = Entitlement(premium = true)
+        repository.reconcile() // Play lists nothing: the countdown starts now
+        assertEquals(clock, repository.state.value.notOwnedSinceMillis)
+    }
+
     // ---- the product / price -----------------------------------------------------------------------------------
 
     @Test
